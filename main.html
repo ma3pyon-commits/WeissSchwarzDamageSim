@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ヴァイスシュヴァルツ ダメージシミュレーター</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* カスタムスタイル */
+        .card-shadow {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 sm:p-8 font-sans">
+
+    <div id="app" class="max-w-4xl mx-auto">
+        <header class="text-center mb-10 p-4 bg-white rounded-xl shadow-lg">
+            <h1 class="text-3xl font-extrabold text-indigo-700">ヴァイスシュヴァルツ ダメージシミュレーター</h1>
+            <p class="text-sm text-gray-600 mt-2">（リフレッシュ周りは仮実装）</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- 設定入力エリア -->
+            <div class="lg:col-span-1 p-6 bg-white rounded-xl card-shadow h-fit">
+                <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">シミュレーション設定</h2>
+                
+                <div class="space-y-4">
+                    <!-- 初期山札枚数 -->
+                    <div>
+                        <label for="deckSize" class="block text-sm font-medium text-gray-700">初期山札枚数 (Deck Size)</label>
+                        <input type="number" id="deckSize" value="20" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                    </div>
+
+                    <!-- CX枚数 -->
+                    <div>
+                        <label for="cxCount" class="block text-sm font-medium text-gray-700">CX枚数 (Climax Count)</label>
+                        <input type="number" id="cxCount" value="5" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                    </div>
+
+                    <!-- ダメージ列 -->
+                    <div>
+                        <label for="damages" class="block text-sm font-medium text-gray-700">与えるダメージ列 (mでモカ能力適用, 例: 2m,3,3)</label>
+                        <input type="text" id="damages" value="2m,3,3,2,3,3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="例: 2m,3,3">
+                    </div>
+
+                    <!-- リフレッシュダメージON/OFF -->
+                    <div class="flex items-center pt-2">
+                        <input type="checkbox" id="refreshToggle" checked class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                        <label for="refreshToggle" class="ml-2 block text-sm font-medium text-gray-700">リフレッシュポイントを適用</label>
+                    </div>
+
+                    <!-- シミュレーション回数 -->
+                    <div>
+                        <label for="simulations" class="block text-sm font-medium text-gray-700">シミュレーション回数</label>
+                        <input type="number" id="simulations" value="50000" min="1000" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                    </div>
+                </div>
+
+                <button id="runButton" onclick="handleSimulation()" class="mt-6 w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
+                    シミュレーション実行
+                </button>
+            </div>
+
+            <!-- 結果表示エリア -->
+            <div class="lg:col-span-2 p-6 bg-white rounded-xl card-shadow">
+                <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">結果</h2>
+                <div id="statusMessage" class="mb-4 text-center text-indigo-600 font-semibold hidden">
+                    計算中です...
+                </div>
+                
+                <div id="resultsOutput" class="space-y-3">
+                    <p class="text-gray-500">実行ボタンを押してシミュレーションを開始してください。</p>
+                </div>
+
+                <div id="summary" class="mt-6 pt-4 border-t border-gray-200">
+                    <p id="summaryText" class="text-sm text-gray-600"></p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // TypeScriptの型ヒントを模倣
+        /** @typedef {'CX' | 'UnCX'} Card */
+        /** @typedef {Object.<number, number>} DamageCounts */
+        /** @typedef {Object.<number, number>} CumulativeProbabilities */
+        /** @typedef {{amount: number, hasMoka: boolean}} DamageItem */
+
+        const Card = {
+            CX: 'CX',
+            UnCX: 'UnCX'
+        };
+        
+        // ====================================================================
+        // 🛠️ 設定保存・読み込み関数
+        // ====================================================================
+
+        /**
+         * 現在の入力値をlocalStorageに保存する。
+         */
+        function saveSettings() {
+            localStorage.setItem('ws_deckSize', document.getElementById('deckSize').value);
+            localStorage.setItem('ws_cxCount', document.getElementById('cxCount').value);
+            localStorage.setItem('ws_damages', document.getElementById('damages').value);
+            localStorage.setItem('ws_simulations', document.getElementById('simulations').value);
+            localStorage.setItem('ws_refreshToggle', document.getElementById('refreshToggle').checked);
+        }
+
+        /**
+         * localStorageから値を読み込み、入力フィールドに設定する。
+         * 最初に値がなければ、HTMLに設定されたデフォルト値を使用する。
+         */
+        function loadSettings() {
+            const deckSizeInput = document.getElementById('deckSize');
+            const cxCountInput = document.getElementById('cxCount');
+            const damagesInput = document.getElementById('damages');
+            const simulationsInput = document.getElementById('simulations');
+            const refreshToggleInput = document.getElementById('refreshToggle');
+
+            deckSizeInput.value = localStorage.getItem('ws_deckSize') || deckSizeInput.value;
+            cxCountInput.value = localStorage.getItem('ws_cxCount') || cxCountInput.value;
+            damagesInput.value = localStorage.getItem('ws_damages') || damagesInput.value;
+            simulationsInput.value = localStorage.getItem('ws_simulations') || simulationsInput.value;
+            
+            const refreshToggleValue = localStorage.getItem('ws_refreshToggle');
+            if (refreshToggleValue !== null) {
+                refreshToggleInput.checked = refreshToggleValue === 'true';
+            }
+        }
+
+        // ====================================================================
+        // ヴァイスシュヴァルツ ダメージシミュレーター クラス 
+        // ====================================================================
+
+        class WeissDamageSimulator {
+            constructor() {
+                this.rng = Math; // JavaScriptのMathオブジェクトを乱数源として使用
+                /** @type {Card[]} */
+                this.discardPile = []; // 控え室
+            }
+
+            /**
+             * 山札をシャッフルする（フィッシャー・イェーツ・シャッフル）
+             * @param {Card[]} deck 
+             */
+            _shuffle(deck) {
+                for (let i = deck.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [deck[i], deck[j]] = [deck[j], deck[i]];
+                }
+            }
+
+            /**
+             * リフレッシュ処理を実行し、リフレッシュダメージを追加する。
+             * @param {Card[]} deck - 現在の山札
+             * @param {number} totalPassedDamage - 現時点での累積ダメージ
+             * @param {boolean} applyRefreshDamage - リフレッシュダメージを適用するかどうか
+             * @returns {[number, Card[]]} - [追加されたダメージ, 新しい山札]
+             */
+            _refresh(deck, totalPassedDamage, applyRefreshDamage) {
+                // 1. リフレッシュダメージ(1点)
+                const addedDamage = applyRefreshDamage ? 1 : 0; // RP設定に応じてダメージを決定
+
+                // 2. 控え室のカードを山札に戻してシャッフル
+                deck.push(...this.discardPile);
+                this.discardPile = []; // 控え室を空にする
+                this._shuffle(deck);
+
+                return [addedDamage, deck];
+            }
+            
+            /**
+             * モカ能力処理: 山札上2枚まで見てCXを控え室に置き、残りを山札トップに戻す。
+             * @param {Card[]} currentDeck 
+             */
+            _processMokaEffect(currentDeck) {
+                if (currentDeck.length === 0) return;
+
+                // 1. 山札の上から2枚まで見る（山札から取り除く）
+                const revealedCards = currentDeck.splice(0, 2); 
+                
+                /** @type {Card[]} */
+                const cxCards = [];
+                /** @type {Card[]} */
+                const otherCards = [];
+
+                // 2. CXとその他のカードを分類
+                for (const card of revealedCards) {
+                    if (card === Card.CX && cxCards.length < 2) {
+                        cxCards.push(card); // 最大2枚のCXを控室へ
+                    } else {
+                        otherCards.push(card); // それ以外のカードは山札トップへ
+                    }
+                }
+
+                // 3. CXを控え室に置く
+                this.discardPile.push(...cxCards);
+
+                // 4. 残りのカードを山札の上に好きな順番で置く
+                currentDeck.unshift(...otherCards);
+            }
+
+            /**
+             * 1回のダメージ処理を実行し、実際に通ったダメージとリフレッシュダメージを返す。
+             * @param {Card[]} currentDeck - 現在の山札（この関数内で変更される）
+             * @param {number} damageAmount - ダメージ点数N
+             * @param {number} totalPassedDamage - 現時点での累積ダメージ点数
+             * @param {boolean} applyRefreshDamage - リフレッシュダメージを適用するかどうか
+             * @returns {[number, number]} - [実際に通ったダメージ, リフレッシュによる追加ダメージ]
+             */
+            _processDamage(currentDeck, damageAmount, totalPassedDamage, applyRefreshDamage) {
+                let passedDamage = 0;
+                let refreshDamage = 0;
+                let isCancelled = false;
+
+                // ダメージ点数（damageAmount）の最大枚数まで1枚ずつめくる
+                for (let i = 0; i < damageAmount; i++) {
+                    // 1. 山札が空になったらリフレッシュ処理
+                    if (currentDeck.length === 0) {
+                        // フラグを渡す
+                        const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
+                        refreshDamage += addedDamage;
+                        totalPassedDamage += addedDamage; // 累積ダメージを更新
+                        currentDeck = newDeck; // 山札を更新
+
+                        // リフレッシュ後も山札が空なら、めくる処理を終了
+                        if (currentDeck.length === 0) {
+                            break;
+                        }
+                    }
+
+                    // 2. 山札の先頭から1枚めくり、山札から取り除く
+                    const drawnCard = currentDeck.shift(); // .shift() は最初の要素を取り除く
+
+                    // 3. CXチェック: 1枚でもCXが出たらキャンセル
+                    if (drawnCard === Card.CX) {
+                        isCancelled = true;
+                        this.discardPile.push(drawnCard);
+                        passedDamage = 0;
+                        break; // CXが出たので、その時点でめくるのをストップ
+                    }
+
+                    // 4. CXが出なければダメージが通る
+                    passedDamage++;
+                    this.discardPile.push(drawnCard); // CXが出なかったカードを控え室へ
+                }
+
+                return [passedDamage, refreshDamage];
+            }
+
+            /**
+             * シミュレーションを実行し、ダメージ点数ごとの累積確率を返す。
+             * @param {number} initialDeckSize 
+             * @param {number} cxCount 
+             * @param {DamageItem[]} damages 
+             * @param {number} simulations 
+             * @param {boolean} applyRefreshDamage - リフレッシュダメージを適用するかどうか
+             * @returns {CumulativeProbabilities}
+             */
+            runSimulation(initialDeckSize, cxCount, damages, simulations, applyRefreshDamage) {
+                /** @type {DamageCounts} */
+                const damageCounts = {};
+                const unCxCount = initialDeckSize - cxCount;
+                
+                // 最大ダメージは、全てのダメージが通り（damageの合計）、RP適用なら+1
+                const maxPossibleDamage = damages.reduce((sum, d) => sum + d.amount, 0) + (applyRefreshDamage ? 1 : 0);
+
+                for (let sim = 0; sim < simulations; sim++) {
+                    // シミュレーションごとの初期化
+                    this.discardPile = [];
+                    
+                    // 1. 初期山札の作成とシャッフル
+                    /** @type {Card[]} */
+                    let deck = Array(cxCount).fill(Card.CX).concat(Array(unCxCount).fill(Card.UnCX));
+                    this._shuffle(deck);
+
+                    // 2. ダメージ処理の実行
+                    let totalPassedDamage = 0;
+                    
+                    let currentDeck = deck; 
+                    for (const damage of damages) {
+                        
+                        // ダメージ処理前のリフレッシュチェック
+                        while (currentDeck.length === 0) {
+                            const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
+                            totalPassedDamage += addedDamage;
+                            currentDeck = newDeck;
+                            if (currentDeck.length === 0) break; // リフレッシュ後も空なら終了
+                        }
+                        if (currentDeck.length === 0) break; // ダメージは通らず次のダメージへ
+
+                        // モカ能力適用チェック
+                        if (damage.hasMoka) {
+                            this._processMokaEffect(currentDeck);
+
+                            // モカ能力で山札が空になった場合、ダメージ処理に入る前に再度リフレッシュ
+                            while (currentDeck.length === 0) {
+                                const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
+                                totalPassedDamage += addedDamage;
+                                currentDeck = newDeck;
+                                if (currentDeck.length === 0) break; 
+                            }
+                        }
+                        
+                        if (currentDeck.length === 0) break; 
+                        
+                        // ダメージ処理を実行
+                        const [passed, refreshAdded] = this._processDamage(currentDeck, damage.amount, totalPassedDamage, applyRefreshDamage);
+                        totalPassedDamage += passed;
+                        totalPassedDamage += refreshAdded; 
+                    }
+
+                    // 3. 結果の集計
+                    damageCounts[totalPassedDamage] = (damageCounts[totalPassedDamage] || 0) + 1;
+                }
+
+                // 4. 累積確率の計算
+                /** @type {CumulativeProbabilities} */
+                const cumulativeProbabilities = {};
+                
+                let cumulativeCount = 0;
+                for (let d = maxPossibleDamage; d >= 1; d--) {
+                    
+                    cumulativeCount += damageCounts[d] || 0;
+                    cumulativeProbabilities[d] = cumulativeCount / simulations;
+                }
+
+                return cumulativeProbabilities;
+            }
+        }
+
+        // ====================================================================
+        // 🚀 UI操作と実行関数
+        // ====================================================================
+
+        const simulator = new WeissDamageSimulator();
+        const resultsOutput = document.getElementById('resultsOutput');
+        const statusMessage = document.getElementById('statusMessage');
+        const runButton = document.getElementById('runButton');
+        const summaryText = document.getElementById('summaryText');
+
+        /**
+         * 入力を取得し、シミュレーションを実行し、結果を表示する
+         */
+        async function handleSimulation() {
+            // 🚨 1. 入力値を保存
+            saveSettings();
+            
+            // 2. UI状態の更新
+            runButton.disabled = true;
+            statusMessage.textContent = '計算中です... しばらくお待ちください。';
+            statusMessage.classList.remove('hidden');
+            resultsOutput.innerHTML = '';
+            summaryText.textContent = '';
+
+            try {
+                // 3. 入力の取得と検証
+                const initialDeckSize = parseInt(document.getElementById('deckSize').value);
+                const cxCount = parseInt(document.getElementById('cxCount').value);
+                const simulations = parseInt(document.getElementById('simulations').value);
+                const applyRefreshDamage = document.getElementById('refreshToggle').checked;
+                
+                const damagesInput = document.getElementById('damages').value;
+                
+                /** @type {DamageItem[]} */
+                const damages = damagesInput.split(',').map(s => {
+                    const trimmed = s.trim();
+                    const hasMoka = trimmed.toLowerCase().includes('m');
+                    const amountStr = trimmed.replace(/[^0-9]/g, ''); 
+                    const amount = parseInt(amountStr);
+                    
+                    if (isNaN(amount) || amount <= 0) return null;
+
+                    return { amount, hasMoka };
+                }).filter(item => item !== null);
+
+                if (initialDeckSize <= 0 || cxCount < 0 || simulations < 1000 || damages.length === 0) {
+                    throw new Error("入力値が不正です。枚数や回数は正の数、ダメージ列はカンマ区切りで入力してください。");
+                }
+                if (cxCount > initialDeckSize) {
+                    throw new Error("CX枚数が初期山札枚数を超えています。CX枚数を修正してください。");
+                }
+
+                // 4. 計算実行
+                await new Promise(resolve => setTimeout(resolve, 10)); 
+
+                const startTime = performance.now();
+                // RP設定を渡す
+                const probabilities = simulator.runSimulation(initialDeckSize, cxCount, damages, simulations, applyRefreshDamage);
+                const endTime = performance.now();
+                
+                // 5. 結果の表示
+                displayResults(probabilities, simulations, initialDeckSize, cxCount, damages, endTime - startTime);
+
+            } catch (error) {
+                console.error(error);
+                resultsOutput.innerHTML = `<div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">${error.message}</div>`;
+            } finally {
+                // 6. UI状態を元に戻す
+                runButton.disabled = false;
+                statusMessage.classList.add('hidden');
+            }
+        }
+
+        /**
+         * 結果の確率リストを整形して表示する
+         * @param {CumulativeProbabilities} probabilities 
+         * @param {number} simulations 
+         * @param {number} initialDeckSize 
+         * @param {number} cxCount 
+         * @param {DamageItem[]} damages 
+         * @param {number} timeTaken 
+         */
+        function displayResults(probabilities, simulations, initialDeckSize, cxCount, damages, timeTaken) {
+            resultsOutput.innerHTML = '';
+            
+            const maxDamageResult = Math.max(...Object.keys(probabilities).map(Number));
+            const results = [];
+            
+            // 表示用のダメージ列文字列を作成 (モカフラグ付き)
+            const damagesString = damages.map(d => `${d.amount}${d.hasMoka ? 'm' : ''}`).join(', ');
+
+            // 1点から最大点数まで表示
+            for (let d = 1; d <= maxDamageResult; d++) {
+                const prob = probabilities[d] || 0.0;
+                
+                // バーの色と幅を計算
+                const percentage = (prob * 100).toFixed(2);
+                const barWidth = Math.max(percentage, 1); // 0%でもバーのラインが見えるように最小1を設定
+                const barColor = prob >= 0.7 ? 'bg-green-500' : prob >= 0.4 ? 'bg-yellow-500' : 'bg-red-500';
+
+                results.push(`
+                    <div class="flex items-center space-x-2">
+                        <span class="font-mono text-sm w-12 text-gray-500">${d}点以上:</span>
+                        <div class="flex-grow bg-gray-200 rounded-full h-4">
+                            <div class="${barColor} h-4 rounded-full" style="width: ${barWidth}%;"></div>
+                        </div>
+                        <span class="font-semibold w-16 text-right">${percentage}%</span>
+                    </div>
+                `);
+            }
+
+            resultsOutput.innerHTML = results.join('');
+
+            summaryText.textContent = `
+                設定：山札${initialDeckSize}枚 (CX${cxCount}枚), ダメージ列 ${damagesString}。
+                ${simulations}回のシミュレーションを ${(timeTaken / 1000).toFixed(3)} 秒で実行しました。
+            `;
+        }
+
+        // ページロード時: 1. 設定を読み込む -> 2. シミュレーションを自動実行する
+        window.onload = () => {
+             loadSettings(); // 保持した設定をロード
+             handleSimulation().catch(e => console.log("初期シミュレーションエラー:", e));
+        };
+    </script>
+</body>
+</html>
