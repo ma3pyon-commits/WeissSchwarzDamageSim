@@ -8,7 +8,7 @@
     <style>
         /* カスタムスタイル */
         .card-shadow {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 4px, 6px, 0.05);
         }
     </style>
 </head>
@@ -17,7 +17,7 @@
     <div id="app" class="max-w-4xl mx-auto">
         <header class="text-center mb-10 p-4 bg-white rounded-xl shadow-lg">
             <h1 class="text-3xl font-extrabold text-indigo-700">ヴァイスシュヴァルツ ダメージシミュレーター</h1>
-            <p class="text-sm text-gray-600 mt-2">（リフレッシュ周りは仮実装）</p>
+            <p class="text-sm text-gray-600 mt-2">（リフレッシュ周りは仮対応）</p>
         </header>
 
         <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -40,8 +40,8 @@
 
                     <!-- ダメージ列 -->
                     <div>
-                        <label for="damages" class="block text-sm font-medium text-gray-700">与えるダメージ列 (mでモカ能力適用, 例: 2m,3,3)</label>
-                        <input type="text" id="damages" value="2m,3,3,2,3,3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="例: 2m,3,3">
+                        <label for="damages" class="block text-sm font-medium text-gray-700">与えるダメージ列 (m:モカ, u:トップ盛り, 例: 2m,3u,3)</label>
+                        <input type="text" id="damages" value="2m,3,3,2,3,3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="例: 2m,3u,3">
                     </div>
 
                     <!-- リフレッシュダメージON/OFF -->
@@ -85,7 +85,7 @@
         /** @typedef {'CX' | 'UnCX'} Card */
         /** @typedef {Object.<number, number>} DamageCounts */
         /** @typedef {Object.<number, number>} CumulativeProbabilities */
-        /** @typedef {{amount: number, hasMoka: boolean}} DamageItem */
+        /** @typedef {{amount: number, hasMoka: boolean, hasUnCXTop: boolean}} DamageItem */
 
         const Card = {
             CX: 'CX',
@@ -202,6 +202,21 @@
             }
 
             /**
+             * UnCXトップ追加処理: 山札の一番上に新しくCXではないカードを置く。
+             * 山札の枚数が1枚増える。
+             * @param {Card[]} currentDeck 
+             */
+            _processUnCXTopEffect(currentDeck) {
+                // 山札の一番上にUnCXを挿入
+                // JavaScriptのunshiftは配列の先頭に要素を追加する（山札のトップに置く操作に相当）
+                currentDeck.unshift(Card.UnCX);
+                
+                // 注意: この操作は、シミュレーション開始時の初期CX/UnCX比率を崩すが、
+                // 山札外からカードを置く効果を持つカードをシミュレートするために有効
+            }
+
+
+            /**
              * 1回のダメージ処理を実行し、実際に通ったダメージとリフレッシュダメージを返す。
              * @param {Card[]} currentDeck - 現在の山札（この関数内で変更される）
              * @param {number} damageAmount - ダメージ点数N
@@ -264,6 +279,8 @@
                 const unCxCount = initialDeckSize - cxCount;
                 
                 // 最大ダメージは、全てのダメージが通り（damageの合計）、RP適用なら+1
+                // ただしUnCXトップ追加により山札枚数が増えるため、単純な合計より多くなる可能性があるが、
+                // ここでは上限値を厳密に計算せず、十分に大きな値（ダメージ列の合計＋リフダメ）とする
                 const maxPossibleDamage = damages.reduce((sum, d) => sum + d.amount, 0) + (applyRefreshDamage ? 1 : 0);
 
                 for (let sim = 0; sim < simulations; sim++) {
@@ -289,6 +306,14 @@
                             if (currentDeck.length === 0) break; // リフレッシュ後も空なら終了
                         }
                         if (currentDeck.length === 0) break; // ダメージは通らず次のダメージへ
+
+                        // 🚨 UnCXトップ追加能力適用チェック
+                        if (damage.hasUnCXTop) {
+                            this._processUnCXTopEffect(currentDeck);
+                            
+                            // UnCXの挿入により山札の長さが変わるが、CX枚数は変わらない。
+                            // 山札が空ではない状態から始まった場合、リフレッシュチェックは不要。
+                        }
 
                         // モカ能力適用チェック
                         if (damage.hasMoka) {
@@ -367,12 +392,16 @@
                 const damages = damagesInput.split(',').map(s => {
                     const trimmed = s.trim();
                     const hasMoka = trimmed.toLowerCase().includes('m');
+                    // UnCXトップ追加フラグ
+                    const hasUnCXTop = trimmed.toLowerCase().includes('u');
+                    
+                    // 数字部分のみを抽出
                     const amountStr = trimmed.replace(/[^0-9]/g, ''); 
                     const amount = parseInt(amountStr);
                     
                     if (isNaN(amount) || amount <= 0) return null;
 
-                    return { amount, hasMoka };
+                    return { amount, hasMoka, hasUnCXTop };
                 }).filter(item => item !== null);
 
                 if (initialDeckSize <= 0 || cxCount < 0 || simulations < 1000 || damages.length === 0) {
@@ -418,8 +447,8 @@
             const maxDamageResult = Math.max(...Object.keys(probabilities).map(Number));
             const results = [];
             
-            // 表示用のダメージ列文字列を作成 (モカフラグ付き)
-            const damagesString = damages.map(d => `${d.amount}${d.hasMoka ? 'm' : ''}`).join(', ');
+            // 表示用のダメージ列文字列を作成 (モカ/UnCXトップフラグ付き)
+            const damagesString = damages.map(d => `${d.amount}${d.hasMoka ? 'm' : ''}${d.hasUnCXTop ? 'u' : ''}`).join(', ');
 
             // 1点から最大点数まで表示
             for (let d = 1; d <= maxDamageResult; d++) {
@@ -447,6 +476,7 @@
                 設定：山札${initialDeckSize}枚 (CX${cxCount}枚), ダメージ列 ${damagesString}。
                 ${simulations}回のシミュレーションを ${(timeTaken / 1000).toFixed(3)} 秒で実行しました。
             `;
+            
         }
 
         // ページロード時: 1. 設定を読み込む -> 2. シミュレーションを自動実行する
