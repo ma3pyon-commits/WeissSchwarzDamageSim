@@ -17,10 +17,10 @@
     <div id="app" class="max-w-4xl mx-auto">
         <header class="text-center mb-10 p-4 bg-white rounded-xl shadow-lg">
             <h1 class="text-3xl font-extrabold text-indigo-700">ヴァイスシュヴァルツ ダメージシミュレーター</h1>
-            <p class="text-sm text-gray-600 mt-2">（リフレッシュ周りは仮対応）</p>
+            <p class="text-sm text-gray-600 mt-2">（リフレッシュ関連は仮実装）</p>
         </header>
 
-        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <main class="grid grid-cols-1 lg:col-cols-3 gap-8">
             <!-- 設定入力エリア -->
             <div class="lg:col-span-1 p-6 bg-white rounded-xl card-shadow h-fit">
                 <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">シミュレーション設定</h2>
@@ -28,20 +28,25 @@
                 <div class="space-y-4">
                     <!-- 初期山札枚数 -->
                     <div>
-                        <label for="deckSize" class="block text-sm font-medium text-gray-700">初期山札枚数 (Deck Size)</label>
-                        <input type="number" id="deckSize" value="20" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                        <label for="deckSize" class="block text-sm font-medium text-gray-700">初期山札枚数</label><!-- (Deck Size)を削除 -->
+                        <input type="number" id="deckSize" value="28" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
                     </div>
 
                     <!-- CX枚数 -->
                     <div>
-                        <label for="cxCount" class="block text-sm font-medium text-gray-700">CX枚数 (Climax Count)</label>
-                        <input type="number" id="cxCount" value="5" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                        <label for="cxCount" class="block text-sm font-medium text-gray-700">CX枚数</label><!-- (Climax Count)を削除 -->
+                        <input type="number" id="cxCount" value="8" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
                     </div>
 
-                    <!-- ダメージ列 -->
+                    <!-- ダメージ列 (説明ボタンを追加) -->
                     <div>
-                        <label for="damages" class="block text-sm font-medium text-gray-700">与えるダメージ列 (m:モカ, u:トップ盛り, 例: 2m,3u,3)</label>
-                        <input type="text" id="damages" value="2m,3,3,2,3,3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="例: 2m,3u,3">
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="damages" class="block text-sm font-medium text-gray-700">与えるダメージ列</label>
+                            <button onclick="showExplanationModal()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 underline">
+                                説明を見る
+                            </button>
+                        </div>
+                        <input type="text" id="damages" value="1,3,3,3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="例: 4,3c,2m,3u,1b">
                     </div>
 
                     <!-- リフレッシュダメージON/OFF -->
@@ -78,6 +83,36 @@
                 </div>
             </div>
         </main>
+        
+        <!-- 署名フッターの追加 -->
+        <footer class="mt-8 text-center text-sm text-gray-500 p-4">
+            <p>Thanks for visiting! – PineAme@tcepseredutitta</p>
+        </footer>
+        <!---------------------->
+
+        <!-- ダメージ列説明モーダル -->
+        <div id="explanationModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden transition-opacity duration-300 items-center justify-center p-4" onclick="if (event.target === this) closeExplanationModal()">
+            <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 transform transition-all duration-300 scale-95 opacity-0" id="modalContent">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-xl font-bold text-indigo-700">ダメージ列 凡例</h3>
+                    <button onclick="closeExplanationModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="text-gray-700 space-y-3">
+                    <p class="font-semibold text-gray-800">入力形式: カンマ区切りでアクションを記述 (例: 1,2u,3u,4m,5c)</p>
+                    <ul class="list-disc list-inside space-y-2 pl-4">
+                        <li><strong class="font-mono text-indigo-600">N</strong>: Nダメージ (N点ダメージを実行)</li>
+                        <li><strong class="font-mono text-indigo-600">Nb</strong>: N枚逆圧縮 (N枚のCXでないカードを山札に加えてシャッフル)</li>
+                        <li><strong class="font-mono text-indigo-600">Nu</strong>: 1枚トップ盛り + Nダメージ (CXでないカードをトップに追加後、Nダメージ)</li>
+                        <li><strong class="font-mono text-indigo-600">Nm</strong>: モカ + Nダメージ (トップ2枚操作後、Nダメージ)</li>
+                        <li><strong class="font-mono text-indigo-600">Nc</strong>: 直前がキャンセル時 Nダメージ (直前のダメージがキャンセルされていた場合のみNダメージを実行)</li>
+                    </ul>
+                </div>
+                <button onclick="closeExplanationModal()" class="mt-6 w-full py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition">閉じる</button>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -85,7 +120,15 @@
         /** @typedef {'CX' | 'UnCX'} Card */
         /** @typedef {Object.<number, number>} DamageCounts */
         /** @typedef {Object.<number, number>} CumulativeProbabilities */
-        /** @typedef {{amount: number, hasMoka: boolean, hasUnCXTop: boolean}} DamageItem */
+        /** @typedef {{
+             amount: number, 
+             isDamage: boolean, 
+             hasMoka: boolean, 
+             hasUnCXTop: boolean,
+             hasBuryShuffle: boolean,
+             hasConditionalCancel: boolean // 条件付きダメージ(c)フラグを追加
+           }} DamageItem 
+        */
 
         const Card = {
             CX: 'CX',
@@ -120,7 +163,8 @@
 
             deckSizeInput.value = localStorage.getItem('ws_deckSize') || deckSizeInput.value;
             cxCountInput.value = localStorage.getItem('ws_cxCount') || cxCountInput.value;
-            damagesInput.value = localStorage.getItem('ws_damages') || damagesInput.value;
+            // 初期値を1,3,3,3に設定 (修正済み)
+            damagesInput.value = localStorage.getItem('ws_damages') || "1,3,3,3";
             simulationsInput.value = localStorage.getItem('ws_simulations') || simulationsInput.value;
             
             const refreshToggleValue = localStorage.getItem('ws_refreshToggle');
@@ -208,11 +252,24 @@
              */
             _processUnCXTopEffect(currentDeck) {
                 // 山札の一番上にUnCXを挿入
-                // JavaScriptのunshiftは配列の先頭に要素を追加する（山札のトップに置く操作に相当）
                 currentDeck.unshift(Card.UnCX);
+            }
+
+            /**
+             * UnCX追加＆シャッフル処理: 指定枚数のUnCXを山札に加え、山札をシャッフルする。
+             * @param {Card[]} currentDeck 
+             * @param {number} count - 追加するUnCXの枚数
+             */
+            _processBuryShuffleEffect(currentDeck, count) {
+                if (count <= 0) return;
                 
-                // 注意: この操作は、シミュレーション開始時の初期CX/UnCX比率を崩すが、
-                // 山札外からカードを置く効果を持つカードをシミュレートするために有効
+                // 指定枚数のUnCXを山札に追加
+                for (let i = 0; i < count; i++) {
+                    currentDeck.push(Card.UnCX);
+                }
+
+                // 山札をシャッフル
+                this._shuffle(currentDeck);
             }
 
 
@@ -222,7 +279,7 @@
              * @param {number} damageAmount - ダメージ点数N
              * @param {number} totalPassedDamage - 現時点での累積ダメージ点数
              * @param {boolean} applyRefreshDamage - リフレッシュダメージを適用するかどうか
-             * @returns {[number, number]} - [実際に通ったダメージ, リフレッシュによる追加ダメージ]
+             * @returns {[number, number, boolean]} - [実際に通ったダメージ, リフレッシュによる追加ダメージ, キャンセルされたかどうか]
              */
             _processDamage(currentDeck, damageAmount, totalPassedDamage, applyRefreshDamage) {
                 let passedDamage = 0;
@@ -260,28 +317,32 @@
                     passedDamage++;
                     this.discardPile.push(drawnCard); // CXが出なかったカードを控え室へ
                 }
+                
+                // ダメージが0点以上で、かつ実際に通ったダメージが0だった場合、キャンセルされたと判定
+                // (damageAmount > 0) は、空山札などで実質ダメージが0になるケースを除外するため。
+                const finalCancellationStatus = (damageAmount > 0 && passedDamage === 0);
 
-                return [passedDamage, refreshDamage];
+                return [passedDamage, refreshDamage, finalCancellationStatus];
             }
 
             /**
              * シミュレーションを実行し、ダメージ点数ごとの累積確率を返す。
              * @param {number} initialDeckSize 
              * @param {number} cxCount 
-             * @param {DamageItem[]} damages 
+             * @param {DamageItem[]} actions 
              * @param {number} simulations 
              * @param {boolean} applyRefreshDamage - リフレッシュダメージを適用するかどうか
              * @returns {CumulativeProbabilities}
              */
-            runSimulation(initialDeckSize, cxCount, damages, simulations, applyRefreshDamage) {
+            runSimulation(initialDeckSize, cxCount, actions, simulations, applyRefreshDamage) {
                 /** @type {DamageCounts} */
                 const damageCounts = {};
                 const unCxCount = initialDeckSize - cxCount;
                 
-                // 最大ダメージは、全てのダメージが通り（damageの合計）、RP適用なら+1
-                // ただしUnCXトップ追加により山札枚数が増えるため、単純な合計より多くなる可能性があるが、
-                // ここでは上限値を厳密に計算せず、十分に大きな値（ダメージ列の合計＋リフダメ）とする
-                const maxPossibleDamage = damages.reduce((sum, d) => sum + d.amount, 0) + (applyRefreshDamage ? 1 : 0);
+                // 最大ダメージは、ダメージアクションの合計＋リフレッシュダメージ(最大1回)を暫定とする
+                const maxPossibleDamage = actions
+                    .filter(a => a.isDamage)
+                    .reduce((sum, d) => sum + d.amount, 0) + (applyRefreshDamage ? 1 : 0);
 
                 for (let sim = 0; sim < simulations; sim++) {
                     // シミュレーションごとの初期化
@@ -292,55 +353,90 @@
                     let deck = Array(cxCount).fill(Card.CX).concat(Array(unCxCount).fill(Card.UnCX));
                     this._shuffle(deck);
 
-                    // 2. ダメージ処理の実行
+                    // 2. アクション処理の実行
                     let totalPassedDamage = 0;
+                    let lastDamageCancelled = false; // 直前のダメージアクションがキャンセルされたか
                     
                     let currentDeck = deck; 
-                    for (const damage of damages) {
+                    for (const action of actions) {
                         
-                        // ダメージ処理前のリフレッシュチェック
+                        // 2a. 山札にカードを加えてシャッフルするアクション (Nb)
+                        if (action.hasBuryShuffle) {
+                            this._processBuryShuffleEffect(currentDeck, action.amount);
+                            // Nbの場合、lastDamageCancelled の状態は維持される
+                            continue; // ダメージ処理は行わない
+                        }
+                        
+                        // 2b. 条件付きダメージアクションのチェック (Nc)
+                        if (action.hasConditionalCancel) {
+                            // 直前のダメージがキャンセルされていない場合、このアクションはスキップ
+                            if (!lastDamageCancelled) {
+                                // 実行されなかった場合、LDCは変更しない（falseのまま）
+                                continue;
+                            }
+                            // キャンセルされていた場合、通常のダメージとして処理を続行
+                            // このアクションの結果が次の LDC を上書きします (後続の処理で実行)。
+                        }
+                        
+                        // 2c. ダメージアクションの場合 (N, Nm, Nu, および条件が満たされたNc)
+                        
+                        // ダメージ処理前のリフレッシュチェック（山札が空の場合）
                         while (currentDeck.length === 0) {
                             const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
                             totalPassedDamage += addedDamage;
                             currentDeck = newDeck;
                             if (currentDeck.length === 0) break; // リフレッシュ後も空なら終了
                         }
-                        if (currentDeck.length === 0) break; // ダメージは通らず次のダメージへ
+                        
+                        // ダメージを実行する前に、特殊能力 (u, m) を適用
+                        if (currentDeck.length > 0) { 
+                             // UnCXトップ追加能力適用チェック
+                            if (action.hasUnCXTop) {
+                                this._processUnCXTopEffect(currentDeck);
+                            }
 
-                        // 🚨 UnCXトップ追加能力適用チェック
-                        if (damage.hasUnCXTop) {
-                            this._processUnCXTopEffect(currentDeck);
-                            
-                            // UnCXの挿入により山札の長さが変わるが、CX枚数は変わらない。
-                            // 山札が空ではない状態から始まった場合、リフレッシュチェックは不要。
-                        }
+                            // モカ能力適用チェック
+                            if (action.hasMoka) {
+                                this._processMokaEffect(currentDeck);
 
-                        // モカ能力適用チェック
-                        if (damage.hasMoka) {
-                            this._processMokaEffect(currentDeck);
-
-                            // モカ能力で山札が空になった場合、ダメージ処理に入る前に再度リフレッシュ
-                            while (currentDeck.length === 0) {
-                                const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
-                                totalPassedDamage += addedDamage;
-                                currentDeck = newDeck;
-                                if (currentDeck.length === 0) break; 
+                                // モカ能力で山札が空になった場合、ダメージ処理に入る前に再度リフレッシュ
+                                while (currentDeck.length === 0) {
+                                    const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
+                                    totalPassedDamage += addedDamage;
+                                    currentDeck = newDeck;
+                                    if (currentDeck.length === 0) break; 
+                                }
                             }
                         }
                         
-                        if (currentDeck.length === 0) break; 
+                        let passedDamage = 0;
+                        let refreshAdded = 0;
+                        let isCurrentActionCancelled = false;
                         
-                        // ダメージ処理を実行
-                        const [passed, refreshAdded] = this._processDamage(currentDeck, damage.amount, totalPassedDamage, applyRefreshDamage);
-                        totalPassedDamage += passed;
+                        if (currentDeck.length > 0) {
+                            // ダメージ処理を実行
+                            const results = this._processDamage(currentDeck, action.amount, totalPassedDamage, applyRefreshDamage);
+                            passedDamage = results[0];
+                            refreshAdded = results[1];
+                            isCurrentActionCancelled = results[2];
+                        } else {
+                             // 山札が空の場合はダメージなしとして、キャンセル状態をFalseに設定
+                             isCurrentActionCancelled = false;
+                        }
+
+                        totalPassedDamage += passedDamage;
                         totalPassedDamage += refreshAdded; 
+
+                        // 3. このアクションがダメージアクションの結果としてキャンセルされたかどうかを記録
+                        // (b以外のアクションは、その結果で LDC を上書きする)
+                        lastDamageCancelled = isCurrentActionCancelled;
                     }
 
-                    // 3. 結果の集計
+                    // 4. 結果の集計
                     damageCounts[totalPassedDamage] = (damageCounts[totalPassedDamage] || 0) + 1;
                 }
 
-                // 4. 累積確率の計算
+                // 5. 累積確率の計算
                 /** @type {CumulativeProbabilities} */
                 const cumulativeProbabilities = {};
                 
@@ -366,6 +462,42 @@
         const summaryText = document.getElementById('summaryText');
 
         /**
+         * ダメージ列の説明モーダルを表示する
+         */
+        function showExplanationModal() {
+            const modal = document.getElementById('explanationModal');
+            const content = document.getElementById('modalContent');
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex', 'opacity-0'); // hiddenを削除し、flexを追加して表示
+            
+            // アニメーションをトリガー
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+
+        /**
+         * ダメージ列の説明モーダルを閉じる
+         */
+        function closeExplanationModal() {
+            const modal = document.getElementById('explanationModal');
+            const content = document.getElementById('modalContent');
+
+            // 逆アニメーションをトリガー
+            content.classList.add('scale-95', 'opacity-0');
+            modal.classList.add('opacity-0');
+
+            // アニメーション完了後に非表示にする
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 300); // Tailwind transition duration
+        }
+
+
+        /**
          * 入力を取得し、シミュレーションを実行し、結果を表示する
          */
         async function handleSimulation() {
@@ -389,11 +521,12 @@
                 const damagesInput = document.getElementById('damages').value;
                 
                 /** @type {DamageItem[]} */
-                const damages = damagesInput.split(',').map(s => {
+                const actions = damagesInput.split(',').map(s => {
                     const trimmed = s.trim();
                     const hasMoka = trimmed.toLowerCase().includes('m');
-                    // UnCXトップ追加フラグ
                     const hasUnCXTop = trimmed.toLowerCase().includes('u');
+                    const hasBuryShuffle = trimmed.toLowerCase().includes('b');
+                    const hasConditionalCancel = trimmed.toLowerCase().includes('c'); // <-- 追加
                     
                     // 数字部分のみを抽出
                     const amountStr = trimmed.replace(/[^0-9]/g, ''); 
@@ -401,10 +534,13 @@
                     
                     if (isNaN(amount) || amount <= 0) return null;
 
-                    return { amount, hasMoka, hasUnCXTop };
+                    // 'b' (Bury) は非ダメージアクション。それ以外はダメージアクション（条件付き含む）。
+                    const isDamage = !hasBuryShuffle; 
+
+                    return { amount, isDamage, hasMoka, hasUnCXTop, hasBuryShuffle, hasConditionalCancel };
                 }).filter(item => item !== null);
 
-                if (initialDeckSize <= 0 || cxCount < 0 || simulations < 1000 || damages.length === 0) {
+                if (initialDeckSize <= 0 || cxCount < 0 || simulations < 1000 || actions.length === 0) {
                     throw new Error("入力値が不正です。枚数や回数は正の数、ダメージ列はカンマ区切りで入力してください。");
                 }
                 if (cxCount > initialDeckSize) {
@@ -412,15 +548,16 @@
                 }
 
                 // 4. 計算実行
+                // ブラウザが固まらないように非同期処理を挟む
                 await new Promise(resolve => setTimeout(resolve, 10)); 
 
                 const startTime = performance.now();
                 // RP設定を渡す
-                const probabilities = simulator.runSimulation(initialDeckSize, cxCount, damages, simulations, applyRefreshDamage);
+                const probabilities = simulator.runSimulation(initialDeckSize, cxCount, actions, simulations, applyRefreshDamage);
                 const endTime = performance.now();
                 
                 // 5. 結果の表示
-                displayResults(probabilities, simulations, initialDeckSize, cxCount, damages, endTime - startTime);
+                displayResults(probabilities, simulations, initialDeckSize, cxCount, actions, endTime - startTime);
 
             } catch (error) {
                 console.error(error);
@@ -438,17 +575,22 @@
          * @param {number} simulations 
          * @param {number} initialDeckSize 
          * @param {number} cxCount 
-         * @param {DamageItem[]} damages 
+         * @param {DamageItem[]} actions 
          * @param {number} timeTaken 
          */
-        function displayResults(probabilities, simulations, initialDeckSize, cxCount, damages, timeTaken) {
+        function displayResults(probabilities, simulations, initialDeckSize, cxCount, actions, timeTaken) {
             resultsOutput.innerHTML = '';
             
             const maxDamageResult = Math.max(...Object.keys(probabilities).map(Number));
             const results = [];
             
-            // 表示用のダメージ列文字列を作成 (モカ/UnCXトップフラグ付き)
-            const damagesString = damages.map(d => `${d.amount}${d.hasMoka ? 'm' : ''}${d.hasUnCXTop ? 'u' : ''}`).join(', ');
+            // 表示用のダメージ列文字列を作成
+            const damagesString = actions.map(d => {
+                if (d.hasBuryShuffle) {
+                    return `${d.amount}b`;
+                }
+                return `${d.amount}${d.hasMoka ? 'm' : ''}${d.hasUnCXTop ? 'u' : ''}${d.hasConditionalCancel ? 'c' : ''}`; // <-- 更新
+            }).join(', ');
 
             // 1点から最大点数まで表示
             for (let d = 1; d <= maxDamageResult; d++) {
