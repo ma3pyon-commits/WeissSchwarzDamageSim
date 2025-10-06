@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WSリーサル計算機 Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 画像出力機能のためにhtml2canvasを追加 -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script> 
     <style>
         /* カスタムスタイル */
         .card-shadow {
@@ -94,7 +96,13 @@
 
             <!-- 結果表示エリア (lg:col-span-2) - ソースの順番を2番目にして、orderクラスを削除 -->
             <div class="lg:col-span-2 p-6 bg-white rounded-xl card-shadow">
-                <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">結果</h2>
+                <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2 flex justify-between items-center">
+                    結果
+                    <!-- 画像出力ボタンを追加 -->
+                    <button id="imageOutputButton" onclick="generateImage()" class="text-sm py-1 px-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-150 ease-in-out hidden">
+                        画像出力
+                    </button>
+                </h2>
                 <div id="statusMessage" class="mb-4 text-center text-indigo-600 font-semibold hidden">
                     計算中です...
                 </div>
@@ -112,7 +120,7 @@
         
         <!-- 署名フッター -->
         <footer class="mt-8 text-center text-sm text-gray-500 p-4">
-            <p>ヴァイスは確率じゃない – PineAme@tcepseredutitta</p>
+            <p>ヴァイスは確率ではない – PineAme@tcepseredutitta</p>
         </footer>
         <!---------------------->
 
@@ -126,7 +134,7 @@
                     </button>
                 </div>
                 <div class="text-gray-700 space-y-3">
-                    <p class="font-semibold text-gray-800">入力形式: カンマ区切りでアクションを記述 (例: 1,2u,3u,4m,5c)</p>
+                    <p class="font-semibold text-gray-800">入力形式: カンマ区切りでアクションを記述 (例: 4,3c,2m,3u,1b)</p>
                     <ul class="list-disc list-inside space-y-2 pl-4">
                         <li><strong class="font-mono text-indigo-600">N</strong>: Nダメージ (N点ダメージを実行)</li>
                         <li><strong class="font-mono text-indigo-600">Nb</strong>: N枚逆圧縮 (N枚のCXでないカードを山札に加えてシャッフル)</li>
@@ -136,6 +144,15 @@
                     </ul>
                 </div>
                 <button onclick="closeExplanationModal()" class="mt-6 w-full py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition">閉じる</button>
+            </div>
+        </div>
+
+        <!-- 画像出力用の一時コンテナ (非表示) -->
+        <!-- html2canvasでキャプチャするために、完全に非表示ではなく画面外に配置 -->
+        <div id="imageSourceContainer" class="absolute top-0 left-0" style="z-index: -10; opacity: 0; pointer-events: none; transform: translateX(-1000px);">
+            <!-- キャプチャするコンテナの幅と基本スタイル -->
+            <div id="imageSource" style="width: 500px; font-family: 'Inter', sans-serif;">
+                <!-- Content will be injected here for image generation -->
             </div>
         </div>
 
@@ -152,7 +169,7 @@
              hasMoka: boolean, 
              hasUnCXTop: boolean,
              hasBuryShuffle: boolean,
-             hasConditionalCancel: boolean // 条件付きダメージ(c)フラグを追加
+             hasConditionalCancel: boolean
            }} DamageItem 
         */
 
@@ -161,6 +178,10 @@
             UnCX: 'UnCX'
         };
         
+        // グローバル変数で最新の結果と設定を保持 (画像出力用)
+        let lastProbabilities = null;
+        let lastSettings = null;
+
         // ====================================================================
         // 🛠️ 設定保存・読み込み関数
         // ====================================================================
@@ -490,6 +511,38 @@
         const statusMessage = document.getElementById('statusMessage');
         const runButton = document.getElementById('runButton');
         const summaryText = document.getElementById('summaryText');
+        
+        // Custom message box function (replacing alert)
+        function showCustomMessage(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            const colorMap = {
+                'red': { bg: '#f8d7da', text: '#721c24' },
+                'info': { bg: '#d4edda', text: '#155724' }
+            };
+            const colors = colorMap[type] || colorMap['info'];
+
+            alertDiv.textContent = message;
+            alertDiv.style.cssText = `
+                position: fixed; top: 20px; right: 20px; 
+                padding: 10px 20px; border-radius: 8px; 
+                background-color: ${colors.bg}; 
+                color: ${colors.text}; 
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+                z-index: 1000;
+                opacity: 0;
+                transition: opacity 0.5s ease-in-out;
+            `;
+            document.body.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                alertDiv.style.opacity = 1;
+            }, 10);
+
+            setTimeout(() => {
+                alertDiv.style.opacity = 0;
+                setTimeout(() => document.body.removeChild(alertDiv), 500);
+            }, 4000);
+        }
 
         /**
          * ダメージ列の説明モーダルを表示する
@@ -528,6 +581,194 @@
                 modal.classList.remove('flex', 'modal-leave-active', 'modal-enter');
             }, 300); // Tailwind transition duration
         }
+        
+        /**
+         * 結果の確率リストを整形して表示する
+         * (グラフ表示と画像出力用データ更新)
+         * @param {CumulativeProbabilities} probabilities 
+         * @param {number} simulations 
+         * @param {number} initialDeckSize 
+         * @param {number} cxCount 
+         * @param {DamageItem[]} actions 
+         * @param {number} timeTaken 
+         */
+        function displayResults(probabilities, simulations, initialDeckSize, cxCount, actions, timeTaken) {
+            resultsOutput.innerHTML = '';
+            
+            const maxDamageResult = Math.max(...Object.keys(probabilities).map(Number));
+            const results = [];
+            
+            // 表示用のダメージ列文字列を作成
+            const damagesString = actions.map(d => {
+                if (d.hasBuryShuffle) {
+                    return `${d.amount}b`;
+                }
+                return `${d.amount}${d.hasMoka ? 'm' : ''}${d.hasUnCXTop ? 'u' : ''}${d.hasConditionalCancel ? 'c' : ''}`;
+            }).join(', ');
+            
+            // 画像出力用のデータを保存し、ボタンを表示
+            lastProbabilities = probabilities;
+            lastSettings = { initialDeckSize, cxCount, damagesString };
+            document.getElementById('imageOutputButton').classList.remove('hidden');
+            
+            // 画像出力用コンテンツを更新
+            updateImageSource(probabilities, lastSettings);
+
+
+            // 1点から最大点数まで表示
+            for (let d = 1; d <= maxDamageResult; d++) {
+                const prob = probabilities[d] || 0.0;
+                
+                // バーの色と幅を計算
+                const percentage = (prob * 100).toFixed(2);
+                const barWidth = Math.max(parseFloat(percentage), 1); // 0%でもバーのラインが見えるように最小1を設定
+                
+                // 危険度を色で表現 (確率が高いほど緑、低いほど赤に反転)
+                let barColor;
+                if (prob >= 0.8) {
+                    barColor = 'bg-green-600'; // 80%以上: 緑 (高確率 = 成功)
+                } else if (prob >= 0.5) {
+                    barColor = 'bg-yellow-500'; // 50%以上: 黄色
+                } else if (prob >= 0.3) {
+                    barColor = 'bg-orange-400'; // 30%以上: オレンジ
+                } else {
+                    barColor = 'bg-red-500'; // 30%未満: 赤 (低確率 = 失敗)
+                }
+
+                results.push(`
+                    <div class="flex items-center space-x-2">
+                        <!-- 固定幅w-16を設定し、グラフの開始位置を揃える -->
+                        <span class="font-mono text-sm text-gray-500 flex-shrink-0 whitespace-nowrap w-16">${d}点以上</span>
+                        <div class="flex-grow bg-gray-200 rounded-full h-6 relative overflow-hidden">
+                            <!-- transition-all duration-300 ease-out は画像キャプチャには不要だが、Web表示用には残す -->
+                            <div class="${barColor} h-full rounded-full transition-all duration-300 ease-out" style="width: ${barWidth}%;"></div>
+                             <span class="absolute right-0 top-0 bottom-0 pr-2 flex items-center text-xs font-bold text-gray-800">${percentage}%</span>
+                        </div>
+                       
+                    </div>
+                `);
+            }
+
+            resultsOutput.innerHTML = results.join('');
+
+            summaryText.textContent = `
+                設定：山札${initialDeckSize}枚 (CX${cxCount}枚), ダメージ列 ${damagesString}。
+                ${simulations}回のシミュレーションを ${(timeTaken / 1000).toFixed(3)} 秒で実行しました。
+            `;
+            
+        }
+
+
+        /**
+         * 画像出力用の非表示コンテナのコンテンツを更新する (CSSバーグラフ形式)
+         * @param {CumulativeProbabilities} probabilities 
+         * @param {{ initialDeckSize: number, cxCount: number, damagesString: string }} settings 
+         */
+        function updateImageSource(probabilities, settings) {
+            const { initialDeckSize, cxCount, damagesString } = settings;
+            const imageSource = document.getElementById('imageSource');
+            const maxDamageResult = Math.max(...Object.keys(probabilities).map(Number));
+            let contentHtml = '';
+
+            // ** 修正点: タイトルと設定の表示形式をご要望の形式に変更 **
+            contentHtml += `
+                <div style="font-family: 'Inter', sans-serif; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #1f2937; margin-bottom: 1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
+                        結果
+                    </h3>
+                    <div style="font-size: 0.9rem; line-height: 1.5; color: #374151; margin-bottom: 1.5rem;">
+                        <p style="margin-bottom: 4px; font-weight: 600; color: #4b5563;">山札：${initialDeckSize}枚 (CX${cxCount}枚)</p>
+                        <p style="font-weight: 600; color: #4b5563; word-break: break-all;">ダメージ：${damagesString}</p>
+                    </div>
+                    <div style="font-size: 1rem; line-height: 1.5; color: #374151; display: flex; flex-direction: column; gap: 8px;">
+            `;
+
+            // Data rows
+            for (let d = 1; d <= maxDamageResult; d++) {
+                const prob = probabilities[d] || 0.0;
+                const percentage = (prob * 100);
+
+                // Constraint: 1.00%以下は出力不要
+                if (percentage <= 1.00) continue;
+
+                const percentageString = percentage.toFixed(2);
+                const barWidth = Math.max(parseFloat(percentage), 1);
+                
+                // バーの色の決定 (Tailwindクラスをインラインスタイルに変換する)
+                let barColor;
+                if (prob >= 0.8) {
+                    barColor = '#059669'; // bg-green-600
+                } else if (prob >= 0.5) {
+                    barColor = '#f59e0b'; // bg-yellow-500
+                } else if (prob >= 0.3) {
+                    barColor = '#fb923c'; // bg-orange-400
+                } else {
+                    barColor = '#ef4444'; // bg-red-500
+                }
+
+                // CSSベースの棒グラフを生成
+                contentHtml += `
+                    <div style="display: flex; align-items: center; gap: 8px; ">
+                        <!-- 固定幅w-16 (64px) 相当 -->
+                        <span style="font-size: 14px; color: #6b7280; flex-shrink: 0; white-space: nowrap; width: 64px;">${d}点以上</span> 
+                        <!-- グラフコンテナ -->
+                        <div style="flex-grow: 1; background-color: #e5e7eb; border-radius: 9999px; height: 24px; position: relative; overflow: hidden;"> 
+                            <!-- グラフバー -->
+                            <div style="background-color: ${barColor}; height: 100%; border-radius: 9999px; width: ${barWidth}%;"></div>
+                            <!-- パーセンテージテキスト -->
+                            <span style="position: absolute; right: 0; top: 0; bottom: 0; padding-right: 8px; display: flex; align-items: center; font-size: 12px; font-weight: 700; color: #1f2937;">${percentageString}%</span> 
+                        </div>
+                    </div>
+                `;
+            }
+
+            contentHtml += `</div></div>`;
+            imageSource.innerHTML = contentHtml;
+        }
+
+        /**
+         * 画像出力ボタンの処理: 非表示のHTML要素をキャプチャしてPNGダウンロードをトリガー
+         */
+        async function generateImage() {
+            if (!lastProbabilities || !lastSettings) {
+                showCustomMessage("シミュレーションを実行してから画像を出力してください。", 'red');
+                return;
+            }
+            
+            // 最新の結果で画像ソースを更新（念のため再実行）
+            updateImageSource(lastProbabilities, lastSettings);
+
+            const sourceElement = document.getElementById('imageSource');
+            
+            // 1. html2canvasでキャプチャ
+            try {
+                // キャプチャ中のメッセージを表示
+                showCustomMessage("画像を生成中です...", 'info');
+
+                const canvas = await html2canvas(sourceElement, {
+                    scale: 2, // 高解像度でキャプチャ
+                    useCORS: true,
+                    backgroundColor: '#ffffff' // 背景色を白に設定
+                });
+
+                // 2. 画像をPNGとしてダウンロード
+                const imageURL = canvas.toDataURL("image/png");
+                const link = document.createElement('a');
+                
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                link.download = `WS_Lethal_Calc_Result_${timestamp}.png`;
+                link.href = imageURL;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showCustomMessage("画像をダウンロードしました。", 'info');
+
+            } catch (error) {
+                console.error("画像生成エラー:", error);
+                showCustomMessage("画像の生成中にエラーが発生しました。", "red"); 
+            }
+        }
 
 
         /**
@@ -543,6 +784,7 @@
             statusMessage.classList.remove('hidden');
             resultsOutput.innerHTML = '';
             summaryText.textContent = '';
+            document.getElementById('imageOutputButton').classList.add('hidden'); // 画像ボタンを隠す
 
             try {
                 // 3. 入力の取得と検証
@@ -559,7 +801,7 @@
                     const hasMoka = trimmed.toLowerCase().includes('m');
                     const hasUnCXTop = trimmed.toLowerCase().includes('u');
                     const hasBuryShuffle = trimmed.toLowerCase().includes('b');
-                    const hasConditionalCancel = trimmed.toLowerCase().includes('c'); // <-- 追加
+                    const hasConditionalCancel = trimmed.toLowerCase().includes('c');
                     
                     // 数字部分のみを抽出
                     const amountStr = trimmed.replace(/[^0-9]/g, ''); 
@@ -602,71 +844,6 @@
             }
         }
 
-        /**
-         * 結果の確率リストを整形して表示する
-         * @param {CumulativeProbabilities} probabilities 
-         * @param {number} simulations 
-         * @param {number} initialDeckSize 
-         * @param {number} cxCount 
-         * @param {DamageItem[]} actions 
-         * @param {number} timeTaken 
-         */
-        function displayResults(probabilities, simulations, initialDeckSize, cxCount, actions, timeTaken) {
-            resultsOutput.innerHTML = '';
-            
-            const maxDamageResult = Math.max(...Object.keys(probabilities).map(Number));
-            const results = [];
-            
-            // 表示用のダメージ列文字列を作成
-            const damagesString = actions.map(d => {
-                if (d.hasBuryShuffle) {
-                    return `${d.amount}b`;
-                }
-                return `${d.amount}${d.hasMoka ? 'm' : ''}${d.hasUnCXTop ? 'u' : ''}${d.hasConditionalCancel ? 'c' : ''}`; // <-- 更新
-            }).join(', ');
-
-            // 1点から最大点数まで表示
-            for (let d = 1; d <= maxDamageResult; d++) {
-                const prob = probabilities[d] || 0.0;
-                
-                // バーの色と幅を計算
-                const percentage = (prob * 100).toFixed(2);
-                const barWidth = Math.max(percentage, 1); // 0%でもバーのラインが見えるように最小1を設定
-                
-                // 危険度を色で表現 (確率が高いほど緑、低いほど赤に反転)
-                let barColor;
-                if (prob >= 0.8) {
-                    barColor = 'bg-green-600'; // 80%以上: 緑 (高確率 = 成功)
-                } else if (prob >= 0.5) {
-                    barColor = 'bg-yellow-500'; // 50%以上: 黄色
-                } else if (prob >= 0.3) {
-                    barColor = 'bg-orange-400'; // 30%以上: オレンジ
-                } else {
-                    barColor = 'bg-red-500'; // 30%未満: 赤 (低確率 = 失敗)
-                }
-
-                results.push(`
-                    <div class="flex items-center space-x-2">
-                        <!-- 固定幅w-16を設定し、グラフの開始位置を揃える -->
-                        <!-- 修正: 末尾の '}' を削除しました -->
-                        <span class="font-mono text-sm text-gray-500 flex-shrink-0 whitespace-nowrap w-16">${d}点以上</span>
-                        <div class="flex-grow bg-gray-200 rounded-full h-6 relative overflow-hidden">
-                            <div class="${barColor} h-full rounded-full transition-all duration-300 ease-out" style="width: ${barWidth}%;"></div>
-                             <span class="absolute right-0 top-0 bottom-0 pr-2 flex items-center text-xs font-bold text-gray-800">${percentage}%</span>
-                        </div>
-                       
-                    </div>
-                `);
-            }
-
-            resultsOutput.innerHTML = results.join('');
-
-            summaryText.textContent = `
-                設定：山札${initialDeckSize}枚 (CX${cxCount}枚), ダメージ列 ${damagesString}。
-                ${simulations}回のシミュレーションを ${(timeTaken / 1000).toFixed(3)} 秒で実行しました。
-            `;
-            
-        }
 
         // ページロード時: 1. 設定を読み込む -> 2. シミュレーションを自動実行する
         window.onload = () => {
