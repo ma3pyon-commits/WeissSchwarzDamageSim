@@ -3,38 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WeiβSchwarzLethalSimulator</title>
+    <title>WSリーサル計算機 Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* カスタムスタイル */
         .card-shadow {
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 4px, 6px, 0.05);
         }
+        /* 結果の棒グラフが結果エリア全体を使うようにする */
+        #resultsOutput {
+            min-height: 250px; /* ある程度の高さを確保 */
+        }
+        /* モーダルのアニメーション用 */
+        .modal-enter {
+            opacity: 0;
+        }
+        .modal-enter-active {
+            opacity: 1;
+            transition: opacity 300ms;
+        }
+        .modal-leave-active {
+            opacity: 0;
+            transition: opacity 300ms;
+        }
+        .modal-content-enter {
+            transform: scale(0.95);
+        }
+        .modal-content-enter-active {
+            transform: scale(1);
+            transition: transform 300ms;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen p-4 sm:p-8 font-sans">
 
-    <div id="app" class="max-w-4xl mx-auto">
+    <div id="app" class="max-w-6xl mx-auto">
         <header class="text-center mb-10 p-4 bg-white rounded-xl shadow-lg">
+            <!-- タイトルをWSリーサル計算機 Proに変更 -->
             <h1 class="text-3xl font-extrabold text-indigo-700">WSリーサル計算機 Pro</h1>
             <p class="text-sm text-gray-600 mt-2">（リフレッシュ関連は仮実装）</p>
         </header>
 
-        <main class="grid grid-cols-1 lg:col-cols-3 gap-8">
-            <!-- 設定入力エリア -->
+        <!-- レイアウトをグリッドに変更し、lg:col-spanで左右に分割 -->
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- 設定入力エリア (lg:col-span-1) - ソースの順番を先頭にし、orderクラスを削除 -->
             <div class="lg:col-span-1 p-6 bg-white rounded-xl card-shadow h-fit">
                 <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">シミュレーション設定</h2>
                 
                 <div class="space-y-4">
                     <!-- 初期山札枚数 -->
                     <div>
-                        <label for="deckSize" class="block text-sm font-medium text-gray-700">初期山札枚数</label><!-- (Deck Size)を削除 -->
+                        <label for="deckSize" class="block text-sm font-medium text-gray-700">初期山札枚数</label>
                         <input type="number" id="deckSize" value="28" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
                     </div>
 
                     <!-- CX枚数 -->
                     <div>
-                        <label for="cxCount" class="block text-sm font-medium text-gray-700">CX枚数</label><!-- (Climax Count)を削除 -->
+                        <label for="cxCount" class="block text-sm font-medium text-gray-700">CX枚数</label>
                         <input type="number" id="cxCount" value="8" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
                     </div>
 
@@ -67,13 +92,14 @@
                 </button>
             </div>
 
-            <!-- 結果表示エリア -->
+            <!-- 結果表示エリア (lg:col-span-2) - ソースの順番を2番目にして、orderクラスを削除 -->
             <div class="lg:col-span-2 p-6 bg-white rounded-xl card-shadow">
                 <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">結果</h2>
                 <div id="statusMessage" class="mb-4 text-center text-indigo-600 font-semibold hidden">
                     計算中です...
                 </div>
                 
+                <!-- 結果グラフ表示領域 -->
                 <div id="resultsOutput" class="space-y-3">
                     <p class="text-gray-500">実行ボタンを押してシミュレーションを開始してください。</p>
                 </div>
@@ -84,9 +110,9 @@
             </div>
         </main>
         
-        <!-- 署名フッターの追加 -->
+        <!-- 署名フッター -->
         <footer class="mt-8 text-center text-sm text-gray-500 p-4">
-            <p>こんなの見てても上手くならないのでちゃんと練習しましょう – PineAme@tcepseredutitta</p>
+            <p>Thanks for visiting! – PineAme@tcepseredutitta</p>
         </footer>
         <!---------------------->
 
@@ -231,10 +257,12 @@
 
                 // 2. CXとその他のカードを分類
                 for (const card of revealedCards) {
+                    // CXを控え室に置く (最大2枚のCXを控室へ)
                     if (card === Card.CX && cxCards.length < 2) {
-                        cxCards.push(card); // 最大2枚のCXを控室へ
+                        cxCards.push(card); 
                     } else {
-                        otherCards.push(card); // それ以外のカードは山札トップへ
+                        // それ以外のカードは山札トップへ
+                        otherCards.push(card); 
                     }
                 }
 
@@ -242,6 +270,8 @@
                 this.discardPile.push(...cxCards);
 
                 // 4. 残りのカードを山札の上に好きな順番で置く
+                // モカの場合、CX以外がランダムな順番でトップに戻る（ここではシャッフルしないため、配列の順番通り）
+                this._shuffle(otherCards); // 念のため、残りのカードはシャッフルして戻すのが一般的だが、ここでは配列の順序を維持
                 currentDeck.unshift(...otherCards);
             }
 
@@ -469,11 +499,12 @@
             const content = document.getElementById('modalContent');
             
             modal.classList.remove('hidden');
-            modal.classList.add('flex', 'opacity-0'); // hiddenを削除し、flexを追加して表示
+            modal.classList.add('flex', 'modal-enter'); 
             
             // アニメーションをトリガー
             setTimeout(() => {
-                modal.classList.remove('opacity-0');
+                modal.classList.add('modal-enter-active');
+                content.classList.add('modal-content-enter-active');
                 content.classList.remove('scale-95', 'opacity-0');
             }, 10);
         }
@@ -486,13 +517,15 @@
             const content = document.getElementById('modalContent');
 
             // 逆アニメーションをトリガー
+            modal.classList.remove('modal-enter-active');
+            modal.classList.add('modal-leave-active');
+            content.classList.remove('modal-content-enter-active');
             content.classList.add('scale-95', 'opacity-0');
-            modal.classList.add('opacity-0');
 
             // アニメーション完了後に非表示にする
             setTimeout(() => {
                 modal.classList.add('hidden');
-                modal.classList.remove('flex');
+                modal.classList.remove('flex', 'modal-leave-active', 'modal-enter');
             }, 300); // Tailwind transition duration
         }
 
@@ -599,15 +632,17 @@
                 // バーの色と幅を計算
                 const percentage = (prob * 100).toFixed(2);
                 const barWidth = Math.max(percentage, 1); // 0%でもバーのラインが見えるように最小1を設定
-                const barColor = prob >= 0.7 ? 'bg-green-500' : prob >= 0.4 ? 'bg-yellow-500' : 'bg-red-500';
+                // 危険度を色で表現
+                const barColor = prob >= 0.8 ? 'bg-red-600' : prob >= 0.5 ? 'bg-orange-400' : prob >= 0.3 ? 'bg-yellow-400' : 'bg-green-500';
 
                 results.push(`
                     <div class="flex items-center space-x-2">
-                        <span class="font-mono text-sm w-12 text-gray-500">${d}点以上:</span>
-                        <div class="flex-grow bg-gray-200 rounded-full h-4">
-                            <div class="${barColor} h-4 rounded-full" style="width: ${barWidth}%;"></div>
+                        <span class="font-mono text-sm w-16 text-gray-500 flex-shrink-0">${d}点以上:</span>
+                        <div class="flex-grow bg-gray-200 rounded-full h-6 relative overflow-hidden">
+                            <div class="${barColor} h-full rounded-full transition-all duration-300 ease-out" style="width: ${barWidth}%;"></div>
+                             <span class="absolute right-0 top-0 bottom-0 pr-2 flex items-center text-xs font-bold text-gray-800">${percentage}%</span>
                         </div>
-                        <span class="font-semibold w-16 text-right">${percentage}%</span>
+                       
                     </div>
                 `);
             }
