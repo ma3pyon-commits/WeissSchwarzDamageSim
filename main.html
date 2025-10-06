@@ -112,7 +112,7 @@
         
         <!-- 署名フッター -->
         <footer class="mt-8 text-center text-sm text-gray-500 p-4">
-            <p>Thanks for visiting! – PineAme@tcepseredutitta</p>
+            <p>ヴァイスは確率じゃない – PineAme@tcepseredutitta</p>
         </footer>
         <!---------------------->
 
@@ -632,12 +632,24 @@
                 // バーの色と幅を計算
                 const percentage = (prob * 100).toFixed(2);
                 const barWidth = Math.max(percentage, 1); // 0%でもバーのラインが見えるように最小1を設定
-                // 危険度を色で表現
-                const barColor = prob >= 0.8 ? 'bg-red-600' : prob >= 0.5 ? 'bg-orange-400' : prob >= 0.3 ? 'bg-yellow-400' : 'bg-green-500';
+                
+                // 危険度を色で表現 (確率が高いほど緑、低いほど赤に反転)
+                let barColor;
+                if (prob >= 0.8) {
+                    barColor = 'bg-green-600'; // 80%以上: 緑 (高確率 = 成功)
+                } else if (prob >= 0.5) {
+                    barColor = 'bg-yellow-500'; // 50%以上: 黄色
+                } else if (prob >= 0.3) {
+                    barColor = 'bg-orange-400'; // 30%以上: オレンジ
+                } else {
+                    barColor = 'bg-red-500'; // 30%未満: 赤 (低確率 = 失敗)
+                }
 
                 results.push(`
                     <div class="flex items-center space-x-2">
-                        <span class="font-mono text-sm w-16 text-gray-500 flex-shrink-0">${d}点以上:</span>
+                        <!-- 固定幅w-16を設定し、グラフの開始位置を揃える -->
+                        <!-- 修正: 末尾の '}' を削除しました -->
+                        <span class="font-mono text-sm text-gray-500 flex-shrink-0 whitespace-nowrap w-16">${d}点以上</span>
                         <div class="flex-grow bg-gray-200 rounded-full h-6 relative overflow-hidden">
                             <div class="${barColor} h-full rounded-full transition-all duration-300 ease-out" style="width: ${barWidth}%;"></div>
                              <span class="absolute right-0 top-0 bottom-0 pr-2 flex items-center text-xs font-bold text-gray-800">${percentage}%</span>
