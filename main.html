@@ -10,7 +10,7 @@
     <style>
         /* カスタムスタイル */
         .card-shadow {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 4px, 6px, 0.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
         /* 結果の棒グラフが結果エリア全体を使うようにする */
         #resultsOutput {
@@ -84,8 +84,8 @@
 
                     <!-- シミュレーション回数 -->
                     <div>
-                        <label for="simulations" class="block text-sm font-medium text-gray-700">シミュレーション回数</label>
-                        <input type="number" id="simulations" value="50000" min="1000" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                        <label for="simulations" class="block text-sm font-medium text-gray-700">シミュレーション回数(1000以上を推奨)</label>
+                        <input type="number" id="simulations" value="50000" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
                     </div>
                 </div>
 
@@ -897,7 +897,7 @@
                     return { amount, isDamage, hasMoka, hasUnCXTop, hasBuryShuffle, hasConditionalCancel };
                 }).filter(item => item !== null);
 
-                if (initialDeckSize <= 0 || cxCount < 0 || simulations < 1000 || actions.length === 0) {
+                if (initialDeckSize <= 0 || cxCount < 0 || simulations < 1 || actions.length === 0) {
                     throw new Error("入力値が不正です。枚数や回数は正の数、ダメージ列はカンマ区切りで入力してください。");
                 }
                 if (cxCount > initialDeckSize) {
@@ -935,3 +935,4 @@
     </script>
 </body>
 </html>
+
