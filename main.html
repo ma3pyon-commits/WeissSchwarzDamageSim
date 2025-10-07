@@ -103,6 +103,7 @@
                         画像出力
                     </button>
                 </h2>
+                <!-- 進行状況メッセージを削除 (hiddenも削除) -->
                 <div id="statusMessage" class="mb-4 text-center text-indigo-600 font-semibold hidden">
                     計算中です...
                 </div>
@@ -144,6 +145,27 @@
                     </ul>
                 </div>
                 <button onclick="closeExplanationModal()" class="mt-6 w-full py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition">閉じる</button>
+            </div>
+        </div>
+        
+        <!-- 画像プレビューモーダル (新規追加) -->
+        <div id="imagePreviewModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden transition-opacity duration-300 items-center justify-center p-4" onclick="if (event.target === this) closeImagePreviewModal()">
+            <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 transform transition-all duration-300 scale-95 opacity-0" id="imagePreviewContent" style="max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="flex justify-between items-center border-b pb-3 mb-4 flex-shrink-0">
+                    <h3 class="text-xl font-bold text-indigo-700">画像確認</h3>
+                    <button onclick="closeImagePreviewModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <!-- 画像表示エリア -->
+                <div class="flex-grow overflow-y-auto mb-4 border rounded-lg p-2 bg-gray-50">
+                    <img id="previewImage" src="" alt="シミュレーション結果画像" class="w-full h-auto object-contain">
+                </div>
+                <!-- ボタンエリア -->
+                <div class="flex justify-end gap-3 flex-shrink-0">
+                    <button onclick="closeImagePreviewModal()" class="py-2 px-4 bg-gray-300 text-gray-800 rounded-lg shadow hover:bg-gray-400 transition">閉じる</button>
+                    <button id="downloadButton" class="py-2 px-4 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition">画像をダウンロード</button>
+                </div>
             </div>
         </div>
 
@@ -544,6 +566,73 @@
             }, 4000);
         }
 
+        // ----------------------------------------------------
+        // 🖼️ 画像プレビューモーダル制御
+        // ----------------------------------------------------
+        
+        /**
+         * 画像をプレビューモーダルに表示する
+         * @param {string} base64Image - base64エンコードされたPNG画像データURL
+         */
+        function showImagePreviewModal(base64Image) {
+            const modal = document.getElementById('imagePreviewModal');
+            const content = document.getElementById('imagePreviewContent');
+            const previewImage = document.getElementById('previewImage');
+            const downloadButton = document.getElementById('downloadButton');
+            
+            // 画像ソースとダウンロードリンクを設定
+            previewImage.src = base64Image;
+            // ダウンロードボタンにBase64データを渡すためのクリックハンドラを再設定
+            downloadButton.onclick = () => downloadImage(base64Image); 
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex', 'modal-enter'); 
+            
+            // アニメーションをトリガー
+            setTimeout(() => {
+                modal.classList.add('modal-enter-active');
+                content.classList.add('modal-content-enter-active');
+                content.classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+
+        /**
+         * 画像プレビューモーダルを閉じる
+         */
+        function closeImagePreviewModal() {
+            const modal = document.getElementById('imagePreviewModal');
+            const content = document.getElementById('imagePreviewContent');
+
+            // 逆アニメーションをトリガー
+            modal.classList.remove('modal-enter-active');
+            modal.classList.add('modal-leave-active');
+            content.classList.remove('modal-content-enter-active');
+            content.classList.add('scale-95', 'opacity-0');
+
+            // アニメーション完了後に非表示にする
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex', 'modal-leave-active', 'modal-enter');
+            }, 300); 
+        }
+
+        /**
+         * モーダル内のボタンから画像をダウンロードする
+         * @param {string} base64Image - base64エンコードされたPNG画像データURL
+         */
+        function downloadImage(base64Image) {
+            const link = document.createElement('a');
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            link.download = `WS_Lethal_Calc_Result_${timestamp}.png`;
+            link.href = base64Image;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showCustomMessage("画像をダウンロードしました。", 'info');
+            closeImagePreviewModal();
+        }
+
         /**
          * ダメージ列の説明モーダルを表示する
          */
@@ -670,14 +759,14 @@
             const maxDamageResult = Math.max(...Object.keys(probabilities).map(Number));
             let contentHtml = '';
 
-            // ** 修正点: タイトルと設定の表示形式をご要望の形式に変更 **
+            // 修正されたタイトルと設定の表示形式
             contentHtml += `
                 <div style="font-family: 'Inter', sans-serif; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
                     <h3 style="font-size: 1.5rem; font-weight: 800; color: #1f2937; margin-bottom: 1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
-                        結果
+                        WSリーサル計算機 結果
                     </h3>
                     <div style="font-size: 0.9rem; line-height: 1.5; color: #374151; margin-bottom: 1.5rem;">
-                        <p style="margin-bottom: 4px; font-weight: 600; color: #4b5563;">山札　　：${initialDeckSize}枚 (CX${cxCount}枚)</p>
+                        <p style="margin-bottom: 4px; font-weight: 600; color: #4b5563;">山札：${initialDeckSize}枚(CX${cxCount}枚)</p>
                         <p style="font-weight: 600; color: #4b5563; word-break: break-all;">ダメージ：${damagesString}</p>
                     </div>
                     <div style="font-size: 1rem; line-height: 1.5; color: #374151; display: flex; flex-direction: column; gap: 8px;">
@@ -727,7 +816,7 @@
         }
 
         /**
-         * 画像出力ボタンの処理: 非表示のHTML要素をキャプチャしてPNGダウンロードをトリガー
+         * 画像出力ボタンの処理: 非表示のHTML要素をキャプチャしてモーダルに表示する
          */
         async function generateImage() {
             if (!lastProbabilities || !lastSettings) {
@@ -742,8 +831,7 @@
             
             // 1. html2canvasでキャプチャ
             try {
-                // キャプチャ中のメッセージを表示
-                showCustomMessage("画像を生成中です...", 'info');
+                // showCustomMessage("画像を生成中です...", 'info'); // 👈 この行を削除
 
                 const canvas = await html2canvas(sourceElement, {
                     scale: 2, // 高解像度でキャプチャ
@@ -751,19 +839,12 @@
                     backgroundColor: '#ffffff' // 背景色を白に設定
                 });
 
-                // 2. 画像をPNGとしてダウンロード
-                const imageURL = canvas.toDataURL("image/png");
-                const link = document.createElement('a');
-                
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-                link.download = `WS_Lethal_Calc_Result_${timestamp}.png`;
-                link.href = imageURL;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                showCustomMessage("画像をダウンロードしました。", 'info');
+                // 2. Base64画像データを取得
+                const base64Image = canvas.toDataURL("image/png");
 
+                // 3. ダウンロードではなく、プレビューモーダルを表示
+                showImagePreviewModal(base64Image);
+                
             } catch (error) {
                 console.error("画像生成エラー:", error);
                 showCustomMessage("画像の生成中にエラーが発生しました。", "red"); 
@@ -781,7 +862,8 @@
             // 2. UI状態の更新
             runButton.disabled = true;
             statusMessage.textContent = '計算中です... しばらくお待ちください。';
-            statusMessage.classList.remove('hidden');
+            statusMessage.classList.remove('hidden'); // 計算中メッセージは維持
+
             resultsOutput.innerHTML = '';
             summaryText.textContent = '';
             document.getElementById('imageOutputButton').classList.add('hidden'); // 画像ボタンを隠す
