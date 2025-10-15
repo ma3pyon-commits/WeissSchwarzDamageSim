@@ -44,21 +44,29 @@
             <p class="text-sm text-gray-600 mt-1">カードの場所を管理して、一人回しの練習をサポートします。</p>
         </header>
 
-        <!-- 操作パネル -->
+        <!-- リセットボタンを操作パネルの外に移動 -->
+        <div class="mb-6 flex justify-end">
+            <button id="reset-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors">
+                リセット
+            </button>
+        </div>
+
+        <!-- 操作パネル (Sticky Header) -->
         <div class="bg-white p-4 rounded-lg shadow-md mb-6 sticky top-0 z-10">
             <div class="flex flex-wrap items-center gap-4 mb-4">
-                <button id="shuffle-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                    シャッフル
-                </button>
+                <!-- 1. ドロー -->
                 <button id="draw-button" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
                     ドロー
                 </button>
-                <button id="reset-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                    リセット
-                </button>
+                <!-- 2. 手札ソート表示 -->
                 <button id="sort-hand-button" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
                     手札
                 </button>
+                <!-- 3. 山札をシャッフル -->
+                <button id="shuffle-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                    ｼｬｯﾌﾙ
+                </button>
+                <!-- 4. ダメージボタン -->
                 <button id="damage-2-button" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition-colors" data-damage="2">
                     2点
                 </button>
@@ -67,7 +75,7 @@
                 </button>
             </div>
             <!-- カウンター -->
-            <div id="counters" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 text-center">
+            <div id="counters" class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-2 text-center">
                 <!-- data-locationとcursor-pointer, hover:shadow-lgを追加 -->
                 <div class="bg-blue-100 text-blue-800 p-2 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="hand">
                     <div class="text-xs sm:text-sm font-medium">手札</div>
@@ -175,7 +183,7 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
             const deckListContainer = document.getElementById('deck-list-container');
             const shuffleButton = document.getElementById('shuffle-button');
             const drawButton = document.getElementById('draw-button'); 
-            const resetButton = document.getElementById('reset-button');
+            const resetButton = document.getElementById('reset-button'); // リセットボタンも取得
             const deckInput = document.getElementById('deck-input');
             const loadDeckButton = document.getElementById('load-deck-button');
             const sortHandButton = document.getElementById('sort-hand-button'); 
@@ -592,7 +600,7 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
             loadDeckButton.addEventListener('click', loadDeckFromTextarea);
             shuffleButton.addEventListener('click', shuffleDeck);
             drawButton.addEventListener('click', drawCard); 
-            resetButton.addEventListener('click', resetDeck);
+            resetButton.addEventListener('click', resetDeck); // 独立したリセットボタンのリスナー
             sortHandButton.addEventListener('click', sortHandToTop); 
             
             // 固定ダメージボタンのリスナー
