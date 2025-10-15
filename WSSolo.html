@@ -44,7 +44,6 @@
             flex-shrink: 0;
             /* 修正点: 右マージンを最小限に設定 (空欄を詰める) */
             margin-right: 0.5rem; 
-            /* 修正点: min-widthを削除 (空欄の原因を排除) */
         }
         .card-name-text {
             /* 画像がない場合に表示するカード名テキストのスタイル */
@@ -536,6 +535,8 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
 
                 // 4. 山札の上から5枚（リストの最後尾から5枚）を手札にする
                 const shuffledRows = Array.from(deckListContainer.children);
+                
+                // 山札はリストの最後尾にあるため、リストの最後尾から5枚を初期手札とする
                 const initialHandElements = shuffledRows.slice(-5); 
 
                 initialHandElements.forEach(cardRow => {
@@ -632,10 +633,10 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
 
             // 9. ドロー機能 
             function drawCard() {
-                // 山札は最後尾にあるので、最後尾から探す
+                // 修正点: 山札の上 = リストの順番で最初の 'deck' カード
                 const deckCards = Array.from(deckListContainer.children).filter(row => 
                     row.querySelector('input[value="deck"]:checked')
-                ).reverse(); // reverseして山札の上（リストの最後尾）から取得
+                );
 
                 if (deckCards.length === 0) {
                     showStatus('山札にカードがありません。ドローできません。', 'error');
@@ -656,10 +657,10 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
 
             // 10. ダメージ処理機能 
             function processDamage(damage) {
-                // 山札は最後尾にあるので、最後尾から探す
+                // 修正点: 山札の上 = リストの順番で最初の 'deck' カード
                 const deckCards = Array.from(deckListContainer.children).filter(row => 
                     row.querySelector('input[value="deck"]:checked')
-                ).reverse(); // reverseして山札の上（リストの最後尾）から取得
+                );
 
                 if (deckCards.length === 0) {
                     showStatus('山札にカードがありません。ダメージ処理を実行できません。', 'error');
@@ -669,6 +670,7 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 let flippedCards = [];
                 let isCanceled = false;
                 const originalDamage = damage;
+                // 山札の上から damage 枚めくる
                 const maxFlip = Math.min(damage, deckCards.length);
 
                 for (let i = 0; i < maxFlip; i++) {
