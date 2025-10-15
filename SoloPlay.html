@@ -10,15 +10,16 @@
         body {
             font-family: 'Inter', 'Noto Sans JP', sans-serif;
         }
-        /* カスタムラジオボタンのスタイル */
+        /* カスタムラジオボタンのスタイル（狭く表示するための調整） */
         .location-radio-group label {
             cursor: pointer;
-            padding: 4px 8px;
+            padding: 2px 5px; /* 狭く */
             border-radius: 9999px;
             transition: all 0.2s ease-in-out;
-            font-size: 0.75rem;
+            font-size: 0.6rem; /* わずかに小さく */
             line-height: 1rem;
             border: 1px solid #e5e7eb; /* gray-200 */
+            white-space: nowrap; /* 折り返しを防ぐ */
         }
         .location-radio-group input[type="radio"] {
             display: none;
@@ -45,65 +46,65 @@
         </header>
 
         <!-- リセットボタンを操作パネルの外に移動 -->
-        <div class="mb-6 flex justify-end">
-            <button id="reset-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors">
+        <div class="mb-4 flex justify-end">
+            <button id="reset-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg shadow-md transition-colors">
                 リセット
             </button>
         </div>
 
-        <!-- 操作パネル (Sticky Header) -->
+        <!-- 操作パネル (Sticky Header) - ボタンとカウンターを小さく調整 -->
         <div class="bg-white p-4 rounded-lg shadow-md mb-6 sticky top-0 z-10">
-            <div class="flex flex-wrap items-center gap-4 mb-4">
+            <div class="flex flex-wrap items-center gap-2 sm:gap-4 mb-4">
                 <!-- 1. ドロー -->
-                <button id="draw-button" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                    ドロー
+                <button id="draw-button" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors">
+                    引く
                 </button>
                 <!-- 2. 手札ソート表示 -->
-                <button id="sort-hand-button" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                <button id="sort-hand-button" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors">
                     手札
                 </button>
                 <!-- 3. 山札をシャッフル -->
-                <button id="shuffle-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                    ｼｬｯﾌﾙ
+                <button id="shuffle-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors">
+                    山札
                 </button>
                 <!-- 4. ダメージボタン -->
-                <button id="damage-2-button" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition-colors" data-damage="2">
-                    2点
+                <button id="damage-2-button" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors" data-damage="2">
+                    2
                 </button>
-                <button id="damage-3-button" class="bg-purple-700 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg transition-colors" data-damage="3">
-                    3点
+                <button id="damage-3-button" class="bg-purple-700 hover:bg-purple-800 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors" data-damage="3">
+                    3
                 </button>
             </div>
-            <!-- カウンター -->
-            <div id="counters" class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-2 text-center">
+            <!-- カウンター - パディングとフォントサイズを縮小 -->
+            <div id="counters" class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-1 sm:gap-2 text-center">
                 <!-- data-locationとcursor-pointer, hover:shadow-lgを追加 -->
-                <div class="bg-blue-100 text-blue-800 p-2 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="hand">
+                <div class="bg-blue-100 text-blue-800 p-1.5 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="hand">
                     <div class="text-xs sm:text-sm font-medium">手札</div>
-                    <span id="count-hand" class="text-xl font-bold">0</span>
+                    <span id="count-hand" class="text-lg sm:text-xl font-bold">0</span>
                 </div>
-                <div class="bg-red-100 text-red-800 p-2 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="stage">
+                <div class="bg-red-100 text-red-800 p-1.5 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="stage">
                     <div class="text-xs sm:text-sm font-medium">舞台</div>
-                    <span id="count-stage" class="text-xl font-bold">0</span>
+                    <span id="count-stage" class="text-lg sm:text-xl font-bold">0</span>
                 </div>
-                <div class="bg-gray-200 text-gray-800 p-2 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="waiting">
+                <div class="bg-gray-200 text-gray-800 p-1.5 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="waiting">
                     <div class="text-xs sm:text-sm font-medium">控室</div>
-                    <span id="count-waiting" class="text-xl font-bold">0</span>
+                    <span id="count-waiting" class="text-lg sm:text-xl font-bold">0</span>
                 </div>
-                <div class="bg-amber-100 text-amber-800 p-2 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="stock">
+                <div class="bg-amber-100 text-amber-800 p-1.5 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="stock">
                     <div class="text-xs sm:text-sm font-medium">ストック</div>
-                    <span id="count-stock" class="text-xl font-bold">0</span>
+                    <span id="count-stock" class="text-lg sm:text-xl font-bold">0</span>
                 </div>
-                <div class="bg-violet-100 text-violet-800 p-2 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="clock">
+                <div class="bg-violet-100 text-violet-800 p-1.5 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="clock">
                     <div class="text-xs sm:text-sm font-medium">クロック</div>
-                    <span id="count-clock" class="text-xl font-bold">0</span>
+                    <span id="count-clock" class="text-lg sm:text-xl font-bold">0</span>
                 </div>
-                <div class="bg-pink-100 text-pink-800 p-2 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="level">
+                <div class="bg-pink-100 text-pink-800 p-1.5 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="level">
                     <div class="text-xs sm:text-sm font-medium">レベル</div>
-                    <span id="count-level" class="text-xl font-bold">0</span>
+                    <span id="count-level" class="text-lg sm:text-xl font-bold">0</span>
                 </div>
-                <div class="bg-emerald-100 text-emerald-800 p-2 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="deck">
+                <div class="bg-emerald-100 text-emerald-800 p-1.5 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="deck">
                     <div class="text-xs sm:text-sm font-medium">山札</div>
-                    <span id="count-deck" class="text-xl font-bold">0</span>
+                    <span id="count-deck" class="text-lg sm:text-xl font-bold">0</span>
                 </div>
             </div>
         </div>
@@ -111,7 +112,7 @@
         <!-- メッセージ/エラー表示エリア (ダメージ処理結果表示用) -->
         <div id="status-message" class="hidden p-3 mb-4 rounded-lg font-semibold transition-opacity duration-300"></div>
 
-        <!-- デッキリスト -->
+        <!-- デッキリスト - カード行を狭く調整 -->
         <div id="deck-list-container" class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
             <!-- カードはここに動的に生成されます -->
         </div>
@@ -221,6 +222,83 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 }, 5000);
             }
 
+            // --- LocalStorage操作 ---
+
+            // 現在の状態をLocalStorageに保存
+            function saveState() {
+                const cardLocations = [];
+                const cardRows = deckListContainer.children;
+                
+                // 各カードの現在の場所を収集
+                Array.from(cardRows).forEach(row => {
+                    const cardId = row.dataset.cardId;
+                    const checkedRadio = row.querySelector('input[type="radio"]:checked');
+                    if (checkedRadio) {
+                        cardLocations.push({
+                            id: cardId,
+                            location: checkedRadio.value
+                        });
+                    }
+                });
+
+                const state = {
+                    deckCsv: deckInput.value,
+                    cardLocations: cardLocations
+                };
+
+                try {
+                    localStorage.setItem('wsToolState', JSON.stringify(state));
+                } catch (e) {
+                    console.error("Could not save state to LocalStorage:", e);
+                }
+            }
+
+            // LocalStorageから状態を読み込み、復元を試みる
+            function loadState() {
+                try {
+                    const savedState = localStorage.getItem('wsToolState');
+                    if (!savedState) {
+                        return false; // 保存された状態がない
+                    }
+
+                    const state = JSON.parse(savedState);
+                    
+                    // 1. デッキCSVを復元し、カードリストを再生成
+                    deckInput.value = state.deckCsv || deckDataCSV.trim();
+                    loadDeckFromTextarea(false); // saveStateを呼ばないでリストを再生成
+
+                    // 2. カードの場所を復元
+                    if (state.cardLocations && state.cardLocations.length > 0) {
+                        const locationMap = new Map(state.cardLocations.map(cl => [cl.id.toString(), cl.location]));
+                        
+                        Array.from(deckListContainer.children).forEach(row => {
+                            const cardId = row.dataset.cardId;
+                            const savedLocation = locationMap.get(cardId);
+                            
+                            // 保存された場所があれば復元
+                            if (savedLocation) {
+                                const targetRadio = row.querySelector(`input[value="${savedLocation}"]`);
+                                if (targetRadio) {
+                                    targetRadio.checked = true;
+                                }
+                            } else {
+                                // 保存データがないカード（デッキCSVが変わった場合など）はデフォルトで山札にする
+                                row.querySelector('input[value="deck"]').checked = true;
+                            }
+                        });
+
+                        // 3. カウンターを更新
+                        updateCounters();
+                        showStatus('前回終了時の状態を復元しました。', 'info');
+                        return true;
+                    }
+
+                } catch (e) {
+                    console.error("Error loading state from LocalStorage:", e);
+                }
+                return false;
+            }
+
             // 1. デッキデータの解析と生成
             function parseDeckData(csv) {
                 try {
@@ -246,7 +324,8 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
 
                         for (let i = 0; i < count; i++) {
                             deck.push({
-                                id: cardId++,
+                                // カードIDはDOM生成時にのみ使用するため、一意であればOK
+                                id: cardId++, 
                                 name: name.trim(),
                                 level: level.trim(), // '0', '1', '2', '3'
                                 type: type.trim() // 'キャラ', 'イベント', 'クライマックス'
@@ -265,23 +344,24 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 deckListContainer.innerHTML = ''; // 既存のリストをクリア
                 deck.forEach(card => {
                     const cardRow = document.createElement('div');
-                    cardRow.className = 'flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border-b border-gray-200 last:border-b-0';
+                    // カード行の垂直パディングを狭く (py-1.5)
+                    cardRow.className = 'flex flex-col sm:flex-row items-start sm:items-center justify-between py-1.5 px-3 border-b border-gray-200 last:border-b-0';
                     
-                    // データをdata属性に保存
+                    // データをdata属性に保存。この card.id は LocalStorageの復元に使用される
                     cardRow.dataset.cardId = card.id;
                     cardRow.dataset.cardName = card.name;
                     cardRow.dataset.cardLevel = card.level;
                     cardRow.dataset.cardType = card.type;
 
                     const cardInfo = document.createElement('div');
-                    // w-52 (固定幅) を設定
-                    cardInfo.className = 'mb-2 sm:mb-0 flex-shrink-0 mr-4 w-full sm:w-52'; 
+                    // カード名表示を小さく (text-sm) し、マージンを減らす (mb-1)
+                    cardInfo.className = 'text-sm mb-1 sm:mb-0 flex-shrink-0 mr-4 w-full sm:w-52'; 
                     
                     // レベル表示の [] を削除
                     const levelText = card.type === 'クライマックス' ? 'CX' : card.level;
                     
                     // レベル表示用のspan
-                    cardInfo.innerHTML = `<span class="font-bold text-gray-700 w-3 inline-block text-center mr-1">${levelText}</span> ${card.name}`;
+                    cardInfo.innerHTML = `<span class="font-bold text-gray-700 w-3 inline-block text-center mr-2">${levelText}</span> ${card.name}`;
 
                     const locationGroup = document.createElement('div');
                     locationGroup.className = 'flex flex-wrap gap-x-2 gap-y-1 location-radio-group';
@@ -291,7 +371,8 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                         const radioInput = document.createElement('input');
                         radioInput.type = 'radio';
                         radioInput.id = radioId;
-                        radioInput.name = `card-location-${card.id}`;
+                        // name属性を card.id に紐づけ、各カードで一意の選択肢となるようにする
+                        radioInput.name = `card-location-${card.id}`; 
                         radioInput.value = loc.id;
                         if (loc.id === 'deck') {
                             radioInput.checked = true; // デフォルトは「山札」
@@ -321,15 +402,16 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 locations.forEach(loc => {
                     document.getElementById(`count-${loc.id}`).textContent = counts[loc.id];
                 });
+                // カウンター更新後に状態を保存
+                saveState();
             }
 
-            // 4. 山札シャッフル機能 (改善: 山札にあるカードのみをシャッフルし、リストの最後尾に集める)
+            // 4. 山札シャッフル機能
             function shuffleDeck() {
                 const deckListRows = Array.from(deckListContainer.children);
                 let deckNodes = [];
                 let otherNodes = [];
 
-                // 1. ノードを「山札」と「その他」に分類
                 deckListRows.forEach(row => {
                     if (row.querySelector('input[value="deck"]:checked')) {
                         deckNodes.push(row);
@@ -338,22 +420,18 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                     }
                 });
                 
-                // 2. 「山札」ノードをシャッフル (フィッシャー・イェーツ)
                 for (let i = deckNodes.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [deckNodes[i], deckNodes[j]] = [deckNodes[j], deckNodes[i]];
                 }
 
-                // 3. メインリストをクリア
                 deckListContainer.innerHTML = '';
                 
-                // 4. その他のカードを先頭に追加 (元の順序を保持)
                 otherNodes.forEach(node => deckListContainer.appendChild(node));
-
-                // 5. シャッフルされた山札を最後尾に追加
                 deckNodes.forEach(node => deckListContainer.appendChild(node));
 
                 updateCounters();
+                saveState(); // 状態を保存
                 showStatus('山札のカードのみをシャッフルし、リストの最後尾に集めました。', 'success');
             }
             
@@ -373,31 +451,29 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 });
 
 
-                // 2. 山札をシャッフルする (新しいロジックが適用される)
+                // 2. 山札をシャッフルする 
                 shuffleDeck();
 
                 // 3. 山札の上から5枚を手札にする
                 const allRows = Array.from(deckListContainer.children);
-                // 山札のカードはリストの最後尾に集まっているが、フィルターされた配列の先頭が山札の上がら順になる
                 const deckCards = allRows.filter(row => row.querySelector('input[value="deck"]:checked')); 
                 const maxDraw = Math.min(5, deckCards.length); 
 
                 for (let i = 0; i < maxDraw; i++) {
                     const cardRow = deckCards[i];
-                    // カードの場所を手札に変更
                     const handRadio = cardRow.querySelector('input[value="hand"]');
                     if (handRadio) {
                         handRadio.checked = true;
                     }
                 }
                 
-                // 4. カウンターとメッセージを更新
                 updateCounters();
+                saveState(); // 状態を保存
                 showStatus('ゲームを初期化し、山札をシャッフルし、初期手札5枚をドローしました。', 'success');
             }
 
-            // 6. デッキ読み込み機能
-            function loadDeckFromTextarea() {
+            // 6. デッキ読み込み機能 (shouldSave引数を追加)
+            function loadDeckFromTextarea(shouldSave = true) {
                 const csvData = deckInput.value;
                 if (!csvData.trim()) {
                     showStatus('デッキリストが入力されていません。', 'error');
@@ -410,7 +486,10 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 }
                 renderDeck(fullDeck);
                 updateCounters();
-                showStatus(`デッキを読み込みました (合計 ${fullDeck.length} 枚)。`, 'success');
+                if (shouldSave) {
+                    saveState(); // 明示的な読み込み操作の場合は保存
+                    showStatus(`デッキを読み込みました (合計 ${fullDeck.length} 枚)。`, 'success');
+                }
             }
 
             // 7. 手札ソート用ヘルパー
@@ -427,7 +506,6 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 const handNodes = [];
                 const otherNodes = [];
 
-                // 1. ノードを「手札」と「その他」に分類
                 deckListRows.forEach(row => {
                     const isHand = row.querySelector('input[value="hand"]:checked');
                     if (isHand) {
@@ -437,30 +515,24 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                     }
                 });
                 
-                // 2. 「手札」ノードをレベル順にソート
                 handNodes.sort((a, b) => {
-                    // DOMのdata属性からレベルとタイプを取得してソート値に変換
                     const levelA = getLevelSortValue({ level: a.dataset.cardLevel, type: a.dataset.cardType });
                     const levelB = getLevelSortValue({ level: b.dataset.cardLevel, type: b.dataset.cardType });
                     return levelA - levelB;
                 });
 
-                // 3. メインリストをクリア
                 deckListContainer.innerHTML = '';
                 
-                // 4. ソートされた手札を先頭に追加
                 handNodes.forEach(node => deckListContainer.appendChild(node));
-
-                // 5. その他のカードを後に追加 (山札もこの中に含まれる)
                 otherNodes.forEach(node => deckListContainer.appendChild(node));
 
-                // 6. メッセージを更新
+                // ソートはカードの場所自体を変更しないため、カウンター更新は不要だが、LocalStorageへの保存は念のため行う
+                saveState();
                 showStatus('手札のカードをレベル順で先頭に集めました。', 'success');
             }
 
             // 9. ドロー機能 
             function drawCard() {
-                // 山札にいるカードのリストを取得 (DOM順が山札の上から順)
                 const deckCards = Array.from(deckListContainer.children).filter(row => 
                     row.querySelector('input[value="deck"]:checked')
                 );
@@ -470,22 +542,19 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                     return;
                 }
 
-                // 山札の先頭のカード（フィルターされた配列の[0]）を取得
                 const topCardRow = deckCards[0];
-                
-                // 手札に移動
                 const handRadio = topCardRow.querySelector('input[value="hand"]');
                 if (handRadio) {
                     handRadio.checked = true;
                 }
 
                 updateCounters();
+                saveState(); // 状態を保存
                 showStatus(`${topCardRow.dataset.cardName} を山札から手札にドローしました。`, 'info');
             }
 
             // 10. ダメージ処理機能 
             function processDamage(damage) {
-                // 1. 山札にいるカードのリストを取得 (DOM順が山札の上から順)
                 const allRows = Array.from(deckListContainer.children);
                 const deckCards = allRows.filter(row => 
                     row.querySelector('input[value="deck"]:checked')
@@ -496,51 +565,29 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                     return;
                 }
 
-                // 2. 1枚ずつめくり、CXチェック
                 let flippedCards = [];
                 let isCanceled = false;
                 const originalDamage = damage;
-
-                // めくる処理は、ダメージ点数か山札枚数の少ない方まで行う
                 const maxFlip = Math.min(damage, deckCards.length);
 
                 for (let i = 0; i < maxFlip; i++) {
-                    // 山札の一番上のカードは、deckCards配列の[i]番目の要素
                     const cardRow = deckCards[i];
                     flippedCards.push(cardRow);
 
-                    // 一時的に'hand'に移動させる (解決領域の代わり。後で正式な場所へ移動)
+                    // 解決領域の代わりに一時的に'hand'に移動させる
                     cardRow.querySelector('input[value="hand"]').checked = true; 
 
-                    // クライマックスチェック
                     if (cardRow.dataset.cardType === 'クライマックス') {
                         isCanceled = true;
-                        break; // CXが出たら、めくるのをここで中断
+                        break;
                     }
                 }
                 
-                // 3. 結果に応じてカードを移動
-                let targetLocation;
-                let message;
+                let targetLocation = isCanceled ? 'waiting' : 'clock';
+                let message = isCanceled
+                    ? `${originalDamage}点ダメージ！めくった${flippedCards.length}枚目でCXが出たためダメージはキャンセルされました。めくったすべてのカードは控室に置かれます。`
+                    : `${originalDamage}点ダメージ！めくった${flippedCards.length}枚にCXがなかったため、ダメージが通りました。めくったすべてのカードはクロックに置かれます。`;
 
-                if (flippedCards.length === 0) {
-                     // 山札が空で、めくるカードがなかった場合の処理 (通常、上のチェックで防がれる)
-                     showStatus('山札が空のため、ダメージ処理を中断しました。', 'error');
-                     updateCounters();
-                     return;
-                }
-
-                if (isCanceled) {
-                    // キャンセル成功: 控室に置く
-                    targetLocation = 'waiting';
-                    message = `${originalDamage}点ダメージ！めくった${flippedCards.length}枚目でCXが出たためダメージはキャンセルされました。めくったすべてのカードは控室に置かれます。`;
-                } else {
-                    // キャンセル失敗: クロックに置く
-                    targetLocation = 'clock';
-                    message = `${originalDamage}点ダメージ！めくった${flippedCards.length}枚にCXがなかったため、ダメージが通りました。めくったすべてのカードはクロックに置かれます。`;
-                }
-
-                // 4. 解決領域にあるカードを最終的な場所へ移動
                 flippedCards.forEach(cardRow => {
                     const targetRadio = cardRow.querySelector(`input[value="${targetLocation}"]`);
                     if (targetRadio) {
@@ -548,19 +595,17 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                     }
                 });
 
-                // 5. カウンターとメッセージを更新
                 updateCounters();
+                saveState(); // 状態を保存
                 showStatus(message, isCanceled ? 'success' : 'error');
             }
             
-            // 11. モーダル表示機能
+            // 11. モーダル表示機能 (変更なし)
             function showCardModal(locationId) {
-                // 1. 場所名を取得
                 const locationName = locations.find(loc => loc.id === locationId)?.name || locationId;
                 modalTitle.textContent = `${locationName} のカード一覧`;
-                modalContent.innerHTML = ''; // コンテンツをクリア
+                modalContent.innerHTML = ''; 
 
-                // 2. 該当する場所にあるカードを取得
                 const rows = Array.from(deckListContainer.children);
                 const targetCards = rows.filter(row => 
                     row.querySelector(`input[value="${locationId}"]:checked`)
@@ -569,7 +614,6 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 if (targetCards.length === 0) {
                     modalContent.innerHTML = '<p class="text-gray-500">この場所には現在カードがありません。</p>';
                 } else {
-                    // 3. カードリストをモーダルに挿入
                     targetCards.forEach(cardRow => {
                         const cardName = cardRow.dataset.cardName;
                         const cardLevel = cardRow.dataset.cardLevel;
@@ -584,12 +628,11 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                     });
                 }
 
-                // 4. モーダルを表示
                 cardModal.classList.remove('hidden');
                 cardModal.classList.add('flex');
             }
 
-            // 12. モーダル非表示機能
+            // 12. モーダル非表示機能 (変更なし)
             function closeModal() {
                 cardModal.classList.add('hidden');
                 cardModal.classList.remove('flex');
@@ -597,13 +640,12 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
 
 
             // --- イベントリスナーの設定 ---
-            loadDeckButton.addEventListener('click', loadDeckFromTextarea);
+            loadDeckButton.addEventListener('click', () => loadDeckFromTextarea(true)); // 明示的に保存
             shuffleButton.addEventListener('click', shuffleDeck);
             drawButton.addEventListener('click', drawCard); 
-            resetButton.addEventListener('click', resetDeck); // 独立したリセットボタンのリスナー
+            resetButton.addEventListener('click', resetDeck); 
             sortHandButton.addEventListener('click', sortHandToTop); 
             
-            // 固定ダメージボタンのリスナー
             document.getElementById('damage-2-button').addEventListener('click', (e) => {
                 processDamage(parseInt(e.target.dataset.damage));
             });
@@ -611,7 +653,7 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 processDamage(parseInt(e.target.dataset.damage));
             });
 
-            // ラジオボタン変更時のカウンター更新リスナー
+            // ラジオボタン変更時のカウンター更新と状態保存リスナー
             deckListContainer.addEventListener('change', (event) => {
                 if (event.target.type === 'radio') {
                     updateCounters();
@@ -626,19 +668,25 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 });
             });
 
-            // 閉じるボタンとオーバーレイにリスナーを設定
             closeModalButton.addEventListener('click', closeModal);
             cardModal.addEventListener('click', (event) => {
-                // オーバーレイをクリックした場合のみ閉じる
                 if (event.target === cardModal) {
                     closeModal();
                 }
             });
 
             // --- 初期化処理 ---
-            deckInput.value = deckDataCSV.trim();
-            loadDeckFromTextarea();
-            resetDeck(); // 初期読み込み後、自動でリセット＆初期手札ドロー
+            
+            // 1. LocalStorageからの状態復元を試みる
+            const stateLoaded = loadState();
+
+            // 2. 復元できなかった場合は、デフォルトのデータで初期化する
+            if (!stateLoaded) {
+                deckInput.value = deckDataCSV.trim();
+                loadDeckFromTextarea(false); // CSVをロード
+                resetDeck(); // 初期手札を引いて保存
+                showStatus('セッション情報が見つからなかったため、デフォルトデッキでゲームを開始しました。', 'info');
+            }
         });
     </script>
 </body>
