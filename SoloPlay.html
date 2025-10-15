@@ -50,6 +50,9 @@
                 <button id="shuffle-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
                     シャッフル
                 </button>
+                <button id="draw-button" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                    ドロー
+                </button>
                 <button id="reset-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
                     リセット
                 </button>
@@ -65,31 +68,32 @@
             </div>
             <!-- カウンター -->
             <div id="counters" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 text-center">
-                <div class="bg-blue-100 text-blue-800 p-2 rounded-lg flex flex-col items-center justify-center">
+                <!-- data-locationとcursor-pointer, hover:shadow-lgを追加 -->
+                <div class="bg-blue-100 text-blue-800 p-2 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="hand">
                     <div class="text-xs sm:text-sm font-medium">手札</div>
                     <span id="count-hand" class="text-xl font-bold">0</span>
                 </div>
-                <div class="bg-red-100 text-red-800 p-2 rounded-lg flex flex-col items-center justify-center">
+                <div class="bg-red-100 text-red-800 p-2 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="stage">
                     <div class="text-xs sm:text-sm font-medium">舞台</div>
                     <span id="count-stage" class="text-xl font-bold">0</span>
                 </div>
-                <div class="bg-gray-200 text-gray-800 p-2 rounded-lg flex flex-col items-center justify-center">
+                <div class="bg-gray-200 text-gray-800 p-2 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="waiting">
                     <div class="text-xs sm:text-sm font-medium">控室</div>
                     <span id="count-waiting" class="text-xl font-bold">0</span>
                 </div>
-                <div class="bg-amber-100 text-amber-800 p-2 rounded-lg flex flex-col items-center justify-center">
+                <div class="bg-amber-100 text-amber-800 p-2 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="stock">
                     <div class="text-xs sm:text-sm font-medium">ストック</div>
                     <span id="count-stock" class="text-xl font-bold">0</span>
                 </div>
-                <div class="bg-violet-100 text-violet-800 p-2 rounded-lg flex flex-col items-center justify-center">
+                <div class="bg-violet-100 text-violet-800 p-2 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="clock">
                     <div class="text-xs sm:text-sm font-medium">クロック</div>
                     <span id="count-clock" class="text-xl font-bold">0</span>
                 </div>
-                <div class="bg-pink-100 text-pink-800 p-2 rounded-lg flex flex-col items-center justify-center">
+                <div class="bg-pink-100 text-pink-800 p-2 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="level">
                     <div class="text-xs sm:text-sm font-medium">レベル</div>
                     <span id="count-level" class="text-xl font-bold">0</span>
                 </div>
-                <div class="bg-emerald-100 text-emerald-800 p-2 rounded-lg flex flex-col items-center justify-center">
+                <div class="bg-emerald-100 text-emerald-800 p-2 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow" data-location="deck">
                     <div class="text-xs sm:text-sm font-medium">山札</div>
                     <span id="count-deck" class="text-xl font-bold">0</span>
                 </div>
@@ -115,6 +119,22 @@
             <button id="load-deck-button" class="mt-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
                 デッキを読み込む
             </button>
+        </div>
+    </div>
+
+    <!-- モーダルオーバーレイ -->
+    <div id="card-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-2xl w-11/12 max-w-lg max-h-[90vh] overflow-y-auto transform transition-all">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 id="modal-title" class="text-xl font-bold text-gray-800">カードリスト</h3>
+                <button id="close-modal" class="text-gray-500 hover:text-gray-800 text-2xl font-semibold leading-none">&times;</button>
+            </div>
+            <div id="modal-content" class="space-y-2">
+                <!-- カードリストはここに挿入される -->
+            </div>
+            <div class="mt-4 text-sm text-gray-600">
+                ※このリストの順番は、ゲーム内の配置順とは必ずしも一致しません。
+            </div>
         </div>
     </div>
 
@@ -154,12 +174,19 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
             // DOM要素の取得
             const deckListContainer = document.getElementById('deck-list-container');
             const shuffleButton = document.getElementById('shuffle-button');
+            const drawButton = document.getElementById('draw-button'); 
             const resetButton = document.getElementById('reset-button');
             const deckInput = document.getElementById('deck-input');
             const loadDeckButton = document.getElementById('load-deck-button');
             const sortHandButton = document.getElementById('sort-hand-button'); 
-            // const sortMessage = document.getElementById('sort-message'); // 削除
             const statusMessage = document.getElementById('status-message'); 
+            
+            // モーダル関連要素の取得
+            const cardModal = document.getElementById('card-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalContent = document.getElementById('modal-content');
+            const closeModalButton = document.getElementById('close-modal');
+            const counterElements = document.querySelectorAll('#counters > div[data-location]'); // 全カウンター要素
             
             // --- Helper Functions ---
             
@@ -286,37 +313,69 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 locations.forEach(loc => {
                     document.getElementById(`count-${loc.id}`).textContent = counts[loc.id];
                 });
-                
-                // カウンター更新時のメッセージ更新ロジックは削除
             }
 
-            // 4. シャッフル機能
+            // 4. 山札シャッフル機能 (改善: 山札にあるカードのみをシャッフルし、リストの最後尾に集める)
             function shuffleDeck() {
-                for (let i = deckListContainer.children.length - 1; i > 0; i--) {
+                const deckListRows = Array.from(deckListContainer.children);
+                let deckNodes = [];
+                let otherNodes = [];
+
+                // 1. ノードを「山札」と「その他」に分類
+                deckListRows.forEach(row => {
+                    if (row.querySelector('input[value="deck"]:checked')) {
+                        deckNodes.push(row);
+                    } else {
+                        otherNodes.push(row);
+                    }
+                });
+                
+                // 2. 「山札」ノードをシャッフル (フィッシャー・イェーツ)
+                for (let i = deckNodes.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
-                    // ノードをランダムな位置に挿入してDOM上でシャッフル
-                    deckListContainer.insertBefore(deckListContainer.children[j], deckListContainer.children[i]);
+                    [deckNodes[i], deckNodes[j]] = [deckNodes[j], deckNodes[i]];
                 }
+
+                // 3. メインリストをクリア
+                deckListContainer.innerHTML = '';
+                
+                // 4. その他のカードを先頭に追加 (元の順序を保持)
+                otherNodes.forEach(node => deckListContainer.appendChild(node));
+
+                // 5. シャッフルされた山札を最後尾に追加
+                deckNodes.forEach(node => deckListContainer.appendChild(node));
+
                 updateCounters();
-                showStatus('山札をシャッフルしました。', 'info');
-                // メッセージ更新ロジックは削除
+                showStatus('山札のカードのみをシャッフルし、リストの最後尾に集めました。', 'success');
             }
             
-            // 5. リセット機能 (挙動変更)
+            // 5. リセット機能
             function resetDeck() {
                 // 1. 全てのカードを山札に戻す
                 const deckRadios = document.querySelectorAll('input[type="radio"][value="deck"]');
                 deckRadios.forEach(radio => radio.checked = true);
+                
+                // 他の場所にいるカードを全て控室に移動させる
+                const otherRadios = document.querySelectorAll('input[type="radio"]:checked:not([value="deck"])');
+                otherRadios.forEach(radio => {
+                    const cardRow = radio.closest('div.flex');
+                    if(cardRow) {
+                        cardRow.querySelector('input[value="waiting"]').checked = true;
+                    }
+                });
 
-                // 2. 山札をシャッフルする
+
+                // 2. 山札をシャッフルする (新しいロジックが適用される)
                 shuffleDeck();
 
                 // 3. 山札の上から5枚を手札にする
                 const allRows = Array.from(deckListContainer.children);
-                const maxDraw = Math.min(5, allRows.length); // 5枚か、山札の枚数の少ない方
+                // 山札のカードはリストの最後尾に集まっているが、フィルターされた配列の先頭が山札の上がら順になる
+                const deckCards = allRows.filter(row => row.querySelector('input[value="deck"]:checked')); 
+                const maxDraw = Math.min(5, deckCards.length); 
 
                 for (let i = 0; i < maxDraw; i++) {
-                    const cardRow = allRows[i];
+                    const cardRow = deckCards[i];
                     // カードの場所を手札に変更
                     const handRadio = cardRow.querySelector('input[value="hand"]');
                     if (handRadio) {
@@ -326,8 +385,7 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 
                 // 4. カウンターとメッセージを更新
                 updateCounters();
-                showStatus('ゲームをリセットし、山札をシャッフルし、初期手札5枚をドローしました。', 'success');
-                // メッセージ更新ロジックは削除
+                showStatus('ゲームを初期化し、山札をシャッフルし、初期手札5枚をドローしました。', 'success');
             }
 
             // 6. デッキ読み込み機能
@@ -355,7 +413,7 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 return parseInt(card.level, 10);
             }
 
-            // 8. 手札をメインリストの先頭に集めてソートする機能 (更新)
+            // 8. 手札をメインリストの先頭に集めてソートする機能
             function sortHandToTop() {
                 const deckListRows = Array.from(deckListContainer.children);
                 const handNodes = [];
@@ -385,15 +443,39 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 // 4. ソートされた手札を先頭に追加
                 handNodes.forEach(node => deckListContainer.appendChild(node));
 
-                // 5. その他のカードを後に追加 (元の順序を保持)
+                // 5. その他のカードを後に追加 (山札もこの中に含まれる)
                 otherNodes.forEach(node => deckListContainer.appendChild(node));
 
                 // 6. メッセージを更新
                 showStatus('手札のカードをレベル順で先頭に集めました。', 'success');
-                // メッセージ更新ロジックは削除
             }
 
-            // 9. ダメージ処理機能 
+            // 9. ドロー機能 
+            function drawCard() {
+                // 山札にいるカードのリストを取得 (DOM順が山札の上から順)
+                const deckCards = Array.from(deckListContainer.children).filter(row => 
+                    row.querySelector('input[value="deck"]:checked')
+                );
+
+                if (deckCards.length === 0) {
+                    showStatus('山札にカードがありません。ドローできません。', 'error');
+                    return;
+                }
+
+                // 山札の先頭のカード（フィルターされた配列の[0]）を取得
+                const topCardRow = deckCards[0];
+                
+                // 手札に移動
+                const handRadio = topCardRow.querySelector('input[value="hand"]');
+                if (handRadio) {
+                    handRadio.checked = true;
+                }
+
+                updateCounters();
+                showStatus(`${topCardRow.dataset.cardName} を山札から手札にドローしました。`, 'info');
+            }
+
+            // 10. ダメージ処理機能 
             function processDamage(damage) {
                 // 1. 山札にいるカードのリストを取得 (DOM順が山札の上から順)
                 const allRows = Array.from(deckListContainer.children);
@@ -434,7 +516,7 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 let message;
 
                 if (flippedCards.length === 0) {
-                     // ダメージ処理の途中で山札が空になるケースはないが、保険として
+                     // 山札が空で、めくるカードがなかった場合の処理 (通常、上のチェックで防がれる)
                      showStatus('山札が空のため、ダメージ処理を中断しました。', 'error');
                      updateCounters();
                      return;
@@ -462,12 +544,54 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 updateCounters();
                 showStatus(message, isCanceled ? 'success' : 'error');
             }
+            
+            // 11. モーダル表示機能
+            function showCardModal(locationId) {
+                // 1. 場所名を取得
+                const locationName = locations.find(loc => loc.id === locationId)?.name || locationId;
+                modalTitle.textContent = `${locationName} のカード一覧`;
+                modalContent.innerHTML = ''; // コンテンツをクリア
+
+                // 2. 該当する場所にあるカードを取得
+                const rows = Array.from(deckListContainer.children);
+                const targetCards = rows.filter(row => 
+                    row.querySelector(`input[value="${locationId}"]:checked`)
+                );
+
+                if (targetCards.length === 0) {
+                    modalContent.innerHTML = '<p class="text-gray-500">この場所には現在カードがありません。</p>';
+                } else {
+                    // 3. カードリストをモーダルに挿入
+                    targetCards.forEach(cardRow => {
+                        const cardName = cardRow.dataset.cardName;
+                        const cardLevel = cardRow.dataset.cardLevel;
+                        const cardType = cardRow.dataset.cardType;
+                        
+                        const levelText = cardType === 'クライマックス' ? 'CX' : cardLevel;
+                        
+                        const cardElement = document.createElement('div');
+                        cardElement.className = 'p-2 bg-gray-50 border border-gray-200 rounded-md text-sm flex items-center';
+                        cardElement.innerHTML = `<span class="font-bold text-gray-700 w-4 inline-block text-center mr-2">${levelText}</span> ${cardName}`;
+                        modalContent.appendChild(cardElement);
+                    });
+                }
+
+                // 4. モーダルを表示
+                cardModal.classList.remove('hidden');
+                cardModal.classList.add('flex');
+            }
+
+            // 12. モーダル非表示機能
+            function closeModal() {
+                cardModal.classList.add('hidden');
+                cardModal.classList.remove('flex');
+            }
 
 
             // --- イベントリスナーの設定 ---
             loadDeckButton.addEventListener('click', loadDeckFromTextarea);
             shuffleButton.addEventListener('click', shuffleDeck);
-            // ★ リセットボタンに新しい関数を設定
+            drawButton.addEventListener('click', drawCard); 
             resetButton.addEventListener('click', resetDeck);
             sortHandButton.addEventListener('click', sortHandToTop); 
             
@@ -483,6 +607,23 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
             deckListContainer.addEventListener('change', (event) => {
                 if (event.target.type === 'radio') {
                     updateCounters();
+                }
+            });
+            
+            // カウンター要素にクリックリスナーを設定
+            counterElements.forEach(counter => {
+                counter.addEventListener('click', () => {
+                    const locationId = counter.dataset.location;
+                    showCardModal(locationId);
+                });
+            });
+
+            // 閉じるボタンとオーバーレイにリスナーを設定
+            closeModalButton.addEventListener('click', closeModal);
+            cardModal.addEventListener('click', (event) => {
+                // オーバーレイをクリックした場合のみ閉じる
+                if (event.target === cardModal) {
+                    closeModal();
                 }
             });
 
