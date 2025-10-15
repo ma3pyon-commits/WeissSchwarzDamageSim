@@ -42,8 +42,9 @@
             display: flex;
             align-items: center;
             flex-shrink: 0;
-            margin-right: 1rem; /* sm:mr-4 */
-            min-width: 13rem; /* 最小幅を設定してレイアウトを安定させる */
+            /* 修正点: 右マージンを最小限に設定 (空欄を詰める) */
+            margin-right: 0.5rem; 
+            /* 修正点: min-widthを削除 (空欄の原因を排除) */
         }
         .card-name-text {
             /* 画像がない場合に表示するカード名テキストのスタイル */
@@ -84,7 +85,7 @@
         </div>
 
         <!-- 操作パネル (Sticky Header) - ボタンとカウンターを小さく調整 -->
-        <div class="bg-white p-4 rounded-lg shadow-md mb-6 sticky top-0 z-10">
+        <div class="bg-white p-4 rounded-lg shadow-md sticky top-0 z-10">
             <div class="flex flex-wrap items-center gap-2 sm:gap-4 mb-4">
                 <!-- 1. ドロー -->
                 <button id="draw-button" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors">
@@ -195,9 +196,9 @@ UMA/W106-066,4,目指せシチーガール！ ユキノビジン,0,0,キャラ
 UMA/W106-083,2,Flare アストンマーチャン,0,0,キャラ
 UMA/W106-119,4,その背中を越えて サトノダイヤモンド,0,0,キャラ
 UMA/W106-122,3,日下開山・花あかり サクラチヨノオー,0,0,キャラ
+UMA/W106-150,1,学園理事長秘書さん 駿川たづな,2,0,イベント
 UMA/W119-080,3,勝利を目指して ダンツフレーム,0,0,キャラ
 UMA/W106-035,4,学園理事長 秋川やよい,2,0,イベント
-UMA/W106-150,1,学園理事長秘書さん 駿川たづな,2,0,イベント
 UMA/W106-076,4,紅葉の賀は賑わいて,0,0,クライマックス
 UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
 
@@ -257,7 +258,6 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
             
             /**
              * カード番号から画像URLを生成する
-             * SyntaxError回避のため、文字列連結を使用し、堅牢なチェックを追加
              */
             function createCardImageUrl(cardCode) {
                 if (!cardCode || !cardCode.startsWith('UMA/')) return null;
@@ -283,7 +283,7 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 
                 const baseUrl = 'https://ws-tcg.com/wordpress/wp-content/images/cardlist/';
                 
-                // テンプレートリテラルを避け、文字列結合でURLを構築（環境固有のSyntaxError対策）
+                // 文字列結合でURLを構築
                 return baseUrl + 'u/' + directoryName + '/' + fileName;
             }
 
@@ -406,10 +406,8 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 deckListContainer.innerHTML = ''; 
                 deck.forEach(card => {
                     const cardRow = document.createElement('div');
-                    // flex-col sm:flex-row を flex に変更して常に横並びにする
                     cardRow.className = 'flex items-center justify-between py-1.5 px-3 border-b border-gray-200 last:border-b-0';
                     
-                    // cardCodeもデータセットに追加
                     cardRow.dataset.cardId = card.id;
                     cardRow.dataset.cardCode = card.cardCode;
                     cardRow.dataset.cardName = card.name;
@@ -417,13 +415,12 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                     cardRow.dataset.cardType = card.type;
 
                     const cardInfo = document.createElement('div');
-                    // mb-1 sm:mb-0 を削除
                     cardInfo.className = 'card-info-box text-sm'; 
                     
                     const isUmaCard = card.cardCode.startsWith('UMA/');
 
                     if (isUmaCard) {
-                        // UMAカードの場合は画像のみを表示し、カード名はツールチップに
+                        // UMAカードの場合は画像のみを表示
                         const imageUrl = createCardImageUrl(card.cardCode);
                         cardInfo.innerHTML = `
                             <div class="w-10 h-10 overflow-hidden rounded-md border border-gray-300 shadow mr-2 flex-shrink-0"
@@ -445,7 +442,6 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
 
 
                     const locationGroup = document.createElement('div');
-                    // flex-wrap を flex-nowrap に変更し、横スクロールを有効に
                     locationGroup.className = 'flex flex-nowrap gap-x-2 gap-y-1 location-radio-group';
 
                     locations.forEach(loc => {
@@ -842,4 +838,3 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
     </script>
 </body>
 </html>
-
