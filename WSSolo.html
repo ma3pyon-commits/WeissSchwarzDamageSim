@@ -603,43 +603,43 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 return parseInt(card.level, 10);
             }
 
-            // 8. 手札をメインリストの先頭に集めてソートする機能 (ユーザー要望に基づき修正)
+            // 8. ソート機能 (ユーザー要望に基づき修正)
             function sortHandToTop() {
-                const deckListRows = Array.from(deckListContainer.children);
+                const allRows = Array.from(deckListContainer.children);
                 
-                // 場所の固定順を定義: 手札 → 舞台 → 控室 → ストック → クロック → レベル → 山札
-                const locationOrder = ['hand', 'stage', 'waiting', 'stock', 'clock', 'level', 'deck'];
+                // 1. カードを場所ごとにグループ化し、現在の順序を維持
+                const locationGroups = {
+                    hand: [], stage: [], waiting: [], stock: [],
+                    clock: [], level: [], deck: []
+                };
 
-                deckListRows.sort((a, b) => {
-                    // 現在の場所を取得
-                    const locA = a.querySelector('input[type="radio"]:checked').value;
-                    const locB = b.querySelector('input[type="radio"]:checked').value;
-                    
-                    const orderA = locationOrder.indexOf(locA);
-                    const orderB = locationOrder.indexOf(locB);
-                    
-                    // 1. 場所の順序でソートする
-                    if (orderA !== orderB) {
-                        return orderA - orderB;
+                allRows.forEach(row => {
+                    const location = row.querySelector('input[type="radio"]:checked').value;
+                    if (locationGroups[location]) {
+                        locationGroups[location].push(row);
                     }
-
-                    // 2. 場所が同じ かつ 手札(hand)である場合、レベル順でソートする
-                    if (locA === 'hand' && locB === 'hand') {
-                        const levelA = getLevelSortValue({ level: a.dataset.cardLevel, type: a.dataset.cardType });
-                        const levelB = getLevelSortValue({ level: b.dataset.cardLevel, type: b.dataset.cardType });
-                        return levelA - levelB;
-                    }
-                    
-                    // 3. その他の場所が同じ場合は、カードIDで安定化（元のリスト上の順序を維持する試み）
-                    return parseInt(a.dataset.cardId, 10) - parseInt(b.dataset.cardId, 10);
                 });
 
-                // ソート結果でDOMを再構築
+                // 2. 手札(hand)のグループのみをレベル順にソート
+                locationGroups.hand.sort((a, b) => {
+                    const levelA = getLevelSortValue({ level: a.dataset.cardLevel, type: a.dataset.cardType });
+                    const levelB = getLevelSortValue({ level: b.dataset.cardLevel, type: b.dataset.cardType });
+                    return levelA - levelB;
+                });
+                
+                // 3. 定義された順序でグループを結合して、最終的なリストを作成
+                const locationOrder = ['hand', 'stage', 'waiting', 'stock', 'clock', 'level', 'deck'];
+                const sortedRows = [];
+                locationOrder.forEach(locationKey => {
+                    sortedRows.push(...locationGroups[locationKey]);
+                });
+
+                // 4. ソート結果でDOMを再構築
                 deckListContainer.innerHTML = '';
-                deckListRows.forEach(node => deckListContainer.appendChild(node));
+                sortedRows.forEach(node => deckListContainer.appendChild(node));
 
                 saveState();
-                showStatus('全てのカードを「場所順」に並び替え、手札のみをレベル順でソートしました。', 'success');
+                showStatus('全てのカードを場所順に並び替え、手札のみレベル順でソートしました。', 'success');
             }
 
             // 9. ドロー機能 
@@ -851,3 +851,4 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
     </script>
 </body>
 </html>
+
