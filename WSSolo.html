@@ -76,7 +76,7 @@
         <!-- リセットとシャッフルボタンを操作パネルの外に移動 -->
         <div class="mb-4 flex justify-end gap-2">
             <button id="shuffle-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg shadow-md transition-colors">
-                山札
+                山札シャッフル
             </button>
             <button id="reset-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg shadow-md transition-colors">
                 リセット
@@ -92,7 +92,7 @@
                 </button>
                 <!-- 2. 手札ソート表示 -->
                 <button id="sort-hand-button" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors">
-                    手札
+                    ソート
                 </button>
                 <!-- 3. ダメージボタン -->
                 <button id="damage-2-button" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors" data-damage="2">
@@ -181,21 +181,20 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // デフォルトのデッキデータを設定
+            // [1] デフォルトのデッキデータを設定 (ユーザー指定のリストに更新)
             const deckDataCSV = `カード番号,枚数,カード名,レベル,コスト,種類
 UMA/W106-049,1,努力は裏切らない！ ダイワスカーレット,3,2,キャラ
 UMA/W106-050,4,フィーユ・エクレール カレンチャン,3,2,キャラ
 UMA/W106-092,1,Step! Smile! Wink! トウカイテイオー,3,2,キャラ
-UMA/W119-079,3,舞台の真ん中に ダンツフレーム,3,2,キャラ
-UMA/W106-059,1,ワイルドトップギア ウオッカ,1,0,キャラ
+UMA/W119-079,2,舞台の真ん中に ダンツフレーム,3,2,キャラ
+UMA/W106-059,2,ワイルドトップギア ウオッカ,1,0,キャラ
 UMA/W106-T30,4,ジンクスに挑むお嬢様 サトノダイヤモンド,1,0,キャラ
-UMA/W106-005,2,岩穿つ青 グラスワンダー,0,0,キャラ
+UMA/W106-005,4,岩穿つ青 グラスワンダー,0,0,キャラ
 UMA/W106-024,4,スーパーカーお姉さん マルゼンスキー,0,0,キャラ
 UMA/W106-066,4,目指せシチーガール！ ユキノビジン,0,0,キャラ
 UMA/W106-083,2,Flare アストンマーチャン,0,0,キャラ
 UMA/W106-119,4,その背中を越えて サトノダイヤモンド,0,0,キャラ
-UMA/W106-122,3,日下開山・花あかり サクラチヨノオー,0,0,キャラ
-UMA/W119-043,1,私のライブ アグネスタキオン,0,0,キャラ
+UMA/W106-122,2,日下開山・花あかり サクラチヨノオー,0,0,キャラ
 UMA/W119-080,3,勝利を目指して ダンツフレーム,0,0,キャラ
 UMA/W106-035,4,学園理事長 秋川やよい,2,0,イベント
 UMA/W106-150,1,学園理事長秘書さん 駿川たづな,2,0,イベント
@@ -504,7 +503,9 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
 
                 deckListContainer.innerHTML = '';
                 
+                // 山札以外のカードを先にDOMに追加
                 otherNodes.forEach(node => deckListContainer.appendChild(node));
+                // シャッフルされた山札のカードをその後にDOMに追加
                 deckNodes.forEach(node => deckListContainer.appendChild(node));
 
                 updateCounters();
@@ -534,11 +535,11 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 deckListContainer.innerHTML = '';
                 allRows.forEach(node => deckListContainer.appendChild(node));
 
-                // 4. 山札の上から5枚（リストの最後尾から5枚）を手札にする
+                // 4. 山札の上から5枚（リストの先頭から5枚）を手札にする
                 const shuffledRows = Array.from(deckListContainer.children);
                 
-                // 山札はリストの最後尾にあるため、リストの最後尾から5枚を初期手札とする
-                const initialHandElements = shuffledRows.slice(-5); 
+                // 山札はリストの上部から始まるため、リストの先頭から5枚を初期手札とする
+                const initialHandElements = shuffledRows.slice(0, 5); 
 
                 initialHandElements.forEach(cardRow => {
                     const handRadio = cardRow.querySelector('input[value="hand"]');
@@ -547,7 +548,7 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                     }
                 });
                 
-                // 5. 手札をリストの先頭に移動し、山札を最後尾に配置する
+                // 5. 手札をリストの先頭に移動し、山札をその後に配置する
                 const finalRows = Array.from(deckListContainer.children);
                 const handNodes = [];
                 const deckNodes = []; // 残りはすべて山札
@@ -568,12 +569,12 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 });
 
                 deckListContainer.innerHTML = '';
-                handNodes.forEach(node => deckListContainer.appendChild(node)); // 手札を先頭に
-                deckNodes.forEach(node => deckListContainer.appendChild(node)); // 山札を最後尾に
+                handNodes.forEach(node => deckListContainer.appendChild(node)); // ソートされた手札を先頭に
+                deckNodes.forEach(node => deckListContainer.appendChild(node)); // 残りをその後に（山札として）
 
                 updateCounters();
                 saveState(); 
-                showStatus('ゲームを初期化し、手札5枚をリストの先頭に表示しました。', 'success');
+                showStatus('ゲームを初期化し、手札5枚をレベル順でリストの先頭に表示しました。', 'success');
             }
 
             // 6. デッキ読み込み機能
@@ -602,39 +603,48 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
                 return parseInt(card.level, 10);
             }
 
-            // 8. 手札をメインリストの先頭に集めてソートする機能
+            // 8. 手札をメインリストの先頭に集めてソートする機能 (ユーザー要望に基づき修正)
             function sortHandToTop() {
                 const deckListRows = Array.from(deckListContainer.children);
-                const handNodes = [];
-                const otherNodes = [];
+                
+                // 場所の固定順を定義: 手札 → 舞台 → 控室 → ストック → クロック → レベル → 山札
+                const locationOrder = ['hand', 'stage', 'waiting', 'stock', 'clock', 'level', 'deck'];
 
-                deckListRows.forEach(row => {
-                    const isHand = row.querySelector('input[value="hand"]:checked');
-                    if (isHand) {
-                        handNodes.push(row);
-                    } else {
-                        otherNodes.push(row);
+                deckListRows.sort((a, b) => {
+                    // 現在の場所を取得
+                    const locA = a.querySelector('input[type="radio"]:checked').value;
+                    const locB = b.querySelector('input[type="radio"]:checked').value;
+                    
+                    const orderA = locationOrder.indexOf(locA);
+                    const orderB = locationOrder.indexOf(locB);
+                    
+                    // 1. 場所の順序でソートする
+                    if (orderA !== orderB) {
+                        return orderA - orderB;
                     }
-                });
-                
-                handNodes.sort((a, b) => {
-                    const levelA = getLevelSortValue({ level: a.dataset.cardLevel, type: a.dataset.cardType });
-                    const levelB = getLevelSortValue({ level: b.dataset.cardLevel, type: b.dataset.cardType });
-                    return levelA - levelB;
+
+                    // 2. 場所が同じ かつ 手札(hand)である場合、レベル順でソートする
+                    if (locA === 'hand' && locB === 'hand') {
+                        const levelA = getLevelSortValue({ level: a.dataset.cardLevel, type: a.dataset.cardType });
+                        const levelB = getLevelSortValue({ level: b.dataset.cardLevel, type: b.dataset.cardType });
+                        return levelA - levelB;
+                    }
+                    
+                    // 3. その他の場所が同じ場合は、カードIDで安定化（元のリスト上の順序を維持する試み）
+                    return parseInt(a.dataset.cardId, 10) - parseInt(b.dataset.cardId, 10);
                 });
 
+                // ソート結果でDOMを再構築
                 deckListContainer.innerHTML = '';
-                
-                handNodes.forEach(node => deckListContainer.appendChild(node));
-                otherNodes.forEach(node => deckListContainer.appendChild(node));
+                deckListRows.forEach(node => deckListContainer.appendChild(node));
 
                 saveState();
-                showStatus('手札のカードをレベル順で先頭に集めました。', 'success');
+                showStatus('全てのカードを「場所順」に並び替え、手札のみをレベル順でソートしました。', 'success');
             }
 
             // 9. ドロー機能 
             function drawCard() {
-                // 修正点: 山札の上 = リストの順番で最初の 'deck' カード
+                // 山札の上 = リストの順番で最初の 'deck' カード
                 const deckCards = Array.from(deckListContainer.children).filter(row => 
                     row.querySelector('input[value="deck"]:checked')
                 );
@@ -658,7 +668,7 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
 
             // 10. ダメージ処理機能 
             function processDamage(damage) {
-                // 修正点: 山札の上 = リストの順番で最初の 'deck' カード
+                // 山札の上 = リストの順番で最初の 'deck' カード
                 const deckCards = Array.from(deckListContainer.children).filter(row => 
                     row.querySelector('input[value="deck"]:checked')
                 );
@@ -795,7 +805,7 @@ UMA/W106-T36,4,風のはじまり,0,0,クライマックス`;
             shuffleButton.addEventListener('click', shuffleDeck);
             drawButton.addEventListener('click', drawCard); 
             resetButton.addEventListener('click', resetDeck); 
-            sortHandButton.addEventListener('click', sortHandToTop); 
+            sortHandButton.addEventListener('click', sortHandToTop); // 修正された関数を呼び出し 
             levelUpButton.addEventListener('click', levelUp);
 
             document.getElementById('damage-2-button').addEventListener('click', (e) => {
