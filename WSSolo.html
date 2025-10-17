@@ -414,4 +414,458 @@ GIM/W124-098,4,何やってるんだろう、,0,0,クライマックス`;
             }
 
             // 2. DOMの描画
-            f
+            function renderDeck(deck) {
+                deckListContainer.innerHTML = ''; 
+                deck.forEach(card => {
+                    const cardRow = document.createElement('div');
+                    cardRow.className = 'flex items-center justify-between py-1.5 px-3 border-b border-gray-200 last:border-b-0';
+                    
+                    cardRow.dataset.cardId = card.id;
+                    cardRow.dataset.cardCode = card.cardCode;
+                    cardRow.dataset.cardName = card.name;
+                    cardRow.dataset.cardLevel = card.level;
+                    cardRow.dataset.cardType = card.type;
+
+                    const cardInfo = document.createElement('div');
+                    cardInfo.className = 'card-info-box text-sm'; 
+                    
+                    // GIMまたはUMAカードの場合に画像を表示
+                    const isImageCard = card.cardCode.startsWith('UMA/') || card.cardCode.startsWith('GIM/');
+
+                    if (isImageCard) {
+                        // 画像を表示
+                        const imageUrl = createCardImageUrl(card.cardCode);
+                        cardInfo.innerHTML = `
+                            <div class="w-10 h-10 overflow-hidden rounded-md border border-gray-300 shadow mr-2 flex-shrink-0"
+                                title="${card.name} (Lv ${card.level})">
+                                <img src="${imageUrl}" alt="${card.name}" class="w-full h-full object-cover" 
+                                     onerror="this.onerror=null; this.src='https://placehold.co/40x40/cccccc/000000?text=Card'">
+                            </div>
+                        `;
+                    } else {
+                        // それ以外のカードは従来のテキスト表示
+                        const levelText = card.type === 'クライマックス' ? 'CX' : card.level;
+                        cardInfo.innerHTML = `
+                            <div class="flex items-center w-full">
+                                <span class="font-bold text-gray-700 w-3 inline-block text-center mr-2 flex-shrink-0">${levelText}</span> 
+                                <span class="card-name-text">${card.name}</span>
+                            </div>
+                        `;
+                    }
+
+
+                    const locationGroup = document.createElement('div');
+                    locationGroup.className = 'flex flex-nowrap gap-x-2 gap-y-1 location-radio-group';
+
+                    locations.forEach(loc => {
+                        const radioId = `card-${card.id}-loc-${loc.id}`;
+                        const radioInput = document.createElement('input');
+                        radioInput.type = 'radio';
+                        radioInput.id = radioId;
+                        radioInput.name = `card-location-${card.id}`; 
+                        radioInput.value = loc.id;
+                        if (loc.id === 'deck') {
+                            radioInput.checked = true; 
+                        }
+
+                        const radioLabel = document.createElement('label');
+                        radioLabel.htmlFor = radioId;
+                        radioLabel.textContent = loc.name;
+
+                        locationGroup.appendChild(radioInput);
+                        locationGroup.appendChild(radioLabel);
+                    });
+
+                    cardRow.appendChild(cardInfo);
+                    cardRow.appendChild(locationGroup);
+                    deckListContainer.appendChild(cardRow);
+                });
+            }
+
+            // 3. カウンターの更新
+            function updateCounters() {
+                const counts = { hand: 0, stage: 0, waiting: 0, stock: 0, clock: 0, level: 0, deck: 0 };
+                const checkedRadios = document.querySelectorAll('input[type="radio"]:checked');
+                checkedRadios.forEach(radio => {
+                    counts[radio.value]++;
+                });
+                locations.forEach(loc => {
+                    document.getElementById(`count-${loc.id}`).textContent = counts[loc.id];
+                });
+                // カウンター更新後に状態を保存
+                saveState();
+            }
+
+            // 4. 山札シャッフル機能
+            function shuffleDeck() {
+                const deckListRows = Array.from(deckListContainer.children);
+                let deckNodes = [];
+                let otherNodes = [];
+
+                deckListRows.forEach(row => {
+                    if (row.querySelector('input[value="deck"]:checked')) {
+                        deckNodes.push(row);
+                    } else {
+                        otherNodes.push(row);
+                    }
+                });
+                
+                for (let i = deckNodes.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [deckNodes[i], deckNodes[j]] = [deckNodes[j], deckNodes[i]];
+                }
+
+                deckListContainer.innerHTML = '';
+                
+                // 山札以外のカードを先にDOMに追加
+                otherNodes.forEach(node => deckListContainer.appendChild(node));
+                // シャッフルされた山札のカードをその後にDOMに追加
+                deckNodes.forEach(node => deckListContainer.appendChild(node));
+
+                updateCounters();
+                saveState(); 
+                showStatus('山札のカードのみをシャッフルしました。', 'success');
+            }
+            
+            // 5. リセット機能
+            function resetDeck() {
+                // 1. 全てのカードを山札に戻す
+                const allRows = Array.from(deckListContainer.children);
+                allRows.forEach(row => {
+                    const deckRadio = row.querySelector('input[value="deck"]');
+                    if (deckRadio) {
+                        deckRadio.checked = true;
+                    }
+                });
+
+                // 2. 山札のカード（現時点では全カード）をシャッフルする
+                // DOM要素の配列を直接シャッフル
+                for (let i = allRows.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [allRows[i], allRows[j]] = [allRows[j], allRows[i]];
+                }
+                
+                // 3. シャッフルされた順でDOMを再構築
+                deckListContainer.innerHTML = '';
+                allRows.forEach(node => deckListContainer.appendChild(node));
+
+                // 4. 山札の上から5枚（リストの先頭から5枚）を手札にする
+                const shuffledRows = Array.from(deckListContainer.children);
+                
+                // 山札はリストの上部から始まるため、リストの先頭から5枚を初期手札とする
+                const initialHandElements = shuffledRows.slice(0, 5); 
+
+                initialHandElements.forEach(cardRow => {
+                    const handRadio = cardRow.querySelector('input[value="hand"]');
+                    if (handRadio) {
+                        handRadio.checked = true;
+                    }
+                });
+                
+                // 5. 手札をリストの先頭に移動し、山札をその後に配置する
+                const finalRows = Array.from(deckListContainer.children);
+                const handNodes = [];
+                const deckNodes = []; // 残りはすべて山札
+
+                finalRows.forEach(row => {
+                    if(row.querySelector('input[value="hand"]:checked')) {
+                        handNodes.push(row);
+                    } else {
+                        deckNodes.push(row);
+                    }
+                });
+                
+                // 手札をレベル順でソート
+                handNodes.sort((a, b) => {
+                    const levelA = getLevelSortValue({ level: a.dataset.cardLevel, type: a.dataset.cardType });
+                    const levelB = getLevelSortValue({ level: b.dataset.cardLevel, type: b.dataset.cardType });
+                    return levelA - levelB;
+                });
+
+                deckListContainer.innerHTML = '';
+                handNodes.forEach(node => deckListContainer.appendChild(node)); // ソートされた手札を先頭に
+                deckNodes.forEach(node => deckListContainer.appendChild(node)); // 残りをその後に（山札として）
+
+                updateCounters();
+                saveState(); 
+                showStatus('ゲームを初期化し、手札5枚をレベル順でリストの先頭に表示しました。', 'success');
+            }
+
+            // 6. デッキ読み込み機能
+            function loadDeckFromTextarea(shouldSave = true) {
+                const csvData = deckInput.value;
+                if (!csvData.trim()) {
+                    showStatus('デッキリストが入力されていません。', 'error');
+                    return;
+                }
+                fullDeck = parseDeckData(csvData);
+                if (fullDeck.length === 0) {
+                    showStatus('デッキリストの解析に失敗しました。ヘッダー行を含むCSV形式になっているか確認してください。', 'error');
+                    return;
+                }
+                renderDeck(fullDeck);
+                updateCounters();
+                if (shouldSave) {
+                    saveState(); 
+                    showStatus(`デッキを読み込みました (合計 ${fullDeck.length} 枚)。`, 'success');
+                }
+            }
+
+            // 7. 手札ソート用ヘルパー
+            function getLevelSortValue(card) {
+                if (card.type === 'クライマックス') return 99; 
+                return parseInt(card.level, 10);
+            }
+
+            // 8. ソート機能 (ユーザー要望に基づき修正)
+            function sortHandToTop() {
+                const allRows = Array.from(deckListContainer.children);
+                
+                // 1. カードを場所ごとにグループ化し、現在の順序を維持
+                const locationGroups = {
+                    hand: [], stage: [], waiting: [], stock: [],
+                    clock: [], level: [], deck: []
+                };
+
+                allRows.forEach(row => {
+                    const location = row.querySelector('input[type="radio"]:checked').value;
+                    if (locationGroups[location]) {
+                        locationGroups[location].push(row);
+                    }
+                });
+
+                // 2. 手札(hand)のグループのみをレベル順にソート
+                locationGroups.hand.sort((a, b) => {
+                    const levelA = getLevelSortValue({ level: a.dataset.cardLevel, type: a.dataset.cardType });
+                    const levelB = getLevelSortValue({ level: b.dataset.cardLevel, type: b.dataset.cardType });
+                    return levelA - levelB;
+                });
+                
+                // 3. 定義された順序でグループを結合して、最終的なリストを作成
+                const locationOrder = ['hand', 'stage', 'waiting', 'stock', 'clock', 'level', 'deck'];
+                const sortedRows = [];
+                locationOrder.forEach(locationKey => {
+                    if (locationGroups[locationKey]) {
+                       sortedRows.push(...locationGroups[locationKey]);
+                    }
+                });
+
+                // 4. ソート結果でDOMを再構築
+                deckListContainer.innerHTML = '';
+                sortedRows.forEach(node => deckListContainer.appendChild(node));
+
+                saveState();
+                showStatus('全てのカードを場所順に並び替え、手札のみレベル順でソートしました。', 'success');
+            }
+
+            // 9. ドロー機能 
+            function drawCard() {
+                // 山札の上 = リストの順番で最初の 'deck' カード
+                const deckCards = Array.from(deckListContainer.children).filter(row => 
+                    row.querySelector('input[value="deck"]:checked')
+                );
+
+                if (deckCards.length === 0) {
+                    showStatus('山札にカードがありません。ドローできません。', 'error');
+                    return;
+                }
+
+                // 山札の一番上 = deckCardsの最初の要素
+                const topCardRow = deckCards[0]; 
+                const handRadio = topCardRow.querySelector('input[value="hand"]');
+                if (handRadio) {
+                    handRadio.checked = true;
+                }
+
+                updateCounters();
+                saveState(); 
+                showStatus(`${topCardRow.dataset.cardName} を山札から手札にドローしました。`, 'info');
+            }
+
+            // 10. ダメージ処理機能 
+            function processDamage(damage) {
+                // 山札の上 = リストの順番で最初の 'deck' カード
+                const deckCards = Array.from(deckListContainer.children).filter(row => 
+                    row.querySelector('input[value="deck"]:checked')
+                );
+
+                if (deckCards.length === 0) {
+                    showStatus('山札にカードがありません。ダメージ処理を実行できません。', 'error');
+                    return;
+                }
+
+                let flippedCards = [];
+                let isCanceled = false;
+                const originalDamage = damage;
+                // 山札の上から damage 枚めくる
+                const maxFlip = Math.min(damage, deckCards.length);
+
+                for (let i = 0; i < maxFlip; i++) {
+                    const cardRow = deckCards[i];
+                    flippedCards.push(cardRow);
+
+                    if (cardRow.dataset.cardType === 'クライマックス') {
+                        isCanceled = true;
+                        break;
+                    }
+                }
+                
+                let targetLocation = isCanceled ? 'waiting' : 'clock';
+                let message = isCanceled
+                    ? `${originalDamage}点ダメージ！めくった${flippedCards.length}枚目でCXが出たためダメージはキャンセルされました。めくったすべてのカードは控室に置かれます。`
+                    : `${originalDamage}点ダメージ！めくった${flippedCards.length}枚にCXがなかったため、ダメージが通りました。めくったすべてのカードはクロックに置かれます。`;
+
+                flippedCards.forEach(cardRow => {
+                    const targetRadio = cardRow.querySelector(`input[value="${targetLocation}"]`);
+                    if (targetRadio) {
+                        targetRadio.checked = true;
+                    }
+                });
+
+                updateCounters();
+                saveState(); 
+                showStatus(message, isCanceled ? 'success' : 'error');
+            }
+
+            // 11. レベルアップ機能 (クロック6枚を控室へ)
+            function levelUp() {
+                const allRows = Array.from(deckListContainer.children);
+                // DOMリストの順番でクロックにあるカードを取得（これが「上から」の定義となります）
+                const clockCards = allRows.filter(row => 
+                    row.querySelector('input[value="clock"]:checked')
+                );
+
+                const requiredCards = 6;
+
+                if (clockCards.length < requiredCards) {
+                    showStatus(`クロックに${requiredCards}枚未満のカードしかありません。（現在 ${clockCards.length} 枚）レベルアップできません。`, 'error');
+                    return;
+                }
+
+                // シャッフルせず、DOM順で先頭から6枚を選ぶ (これが「上から」の処理)
+                const cardsToMove = clockCards.slice(0, requiredCards);
+
+                cardsToMove.forEach(cardRow => {
+                    const targetRadio = cardRow.querySelector(`input[value="waiting"]`);
+                    if (targetRadio) {
+                        targetRadio.checked = true;
+                    }
+                });
+                
+                updateCounters();
+                saveState(); 
+                showStatus(`クロックの上から${requiredCards}枚のカードを控え室に送りました。`, 'success');
+            }
+
+            
+            // 12. モーダル表示機能
+            function showCardModal(locationId) {
+                const locationName = locations.find(loc => loc.id === locationId)?.name || locationId;
+                modalTitle.textContent = `${locationName} のカード一覧`;
+                modalContent.innerHTML = ''; 
+
+                const rows = Array.from(deckListContainer.children);
+                const targetCards = rows.filter(row => 
+                    row.querySelector(`input[value="${locationId}"]:checked`)
+                );
+
+                if (targetCards.length === 0) {
+                    modalContent.innerHTML = '<p class="text-gray-500">この場所には現在カードがありません。</p>';
+                } else {
+                    targetCards.forEach(cardRow => {
+                        const cardName = cardRow.dataset.cardName;
+                        const cardLevel = cardRow.dataset.cardLevel;
+                        const cardType = cardRow.dataset.cardType;
+                        const cardCode = cardRow.dataset.cardCode;
+                        
+                        const cardElement = document.createElement('div');
+                        cardElement.className = 'p-2 bg-gray-50 border border-gray-200 rounded-md text-sm flex items-center';
+                        
+                        // GIMまたはUMAカードの場合に画像を表示
+                        const isImageCard = cardCode.startsWith('UMA/') || cardCode.startsWith('GIM/');
+
+                        if (isImageCard) {
+                            // モーダル内では少し大きめの画像を表示
+                            const imageUrl = createCardImageUrl(cardCode);
+                            // 画像のtitle属性にカード名を入れてホバー時に表示
+                            cardElement.innerHTML = `
+                                <div class="w-16 h-16 overflow-hidden rounded-md border border-gray-300 shadow mr-3 flex-shrink-0"
+                                     title="${cardName} (Lv ${cardLevel})">
+                                    <img src="${imageUrl}" alt="${cardName}" class="w-full h-full object-cover" 
+                                         onerror="this.onerror=null; this.src='https://placehold.co/64x64/cccccc/000000?text=Card'">
+                                </div>
+                                <span class="font-medium text-base text-gray-800">${cardName}</span>
+                            `;
+                        } else {
+                            // 従来のテキスト表示
+                            const levelText = cardType === 'クライマックス' ? 'CX' : cardLevel;
+                            cardElement.innerHTML = `<span class="font-bold text-gray-700 w-4 inline-block text-center mr-2">${levelText}</span> ${cardName}`;
+                        }
+
+                        modalContent.appendChild(cardElement);
+                    });
+                }
+
+                cardModal.classList.remove('hidden');
+                cardModal.classList.add('flex');
+            }
+
+            // 13. モーダル非表示機能
+            function closeModal() {
+                cardModal.classList.add('hidden');
+                cardModal.classList.remove('flex');
+            }
+
+
+            // --- イベントリスナーの設定 ---
+            loadDeckButton.addEventListener('click', () => loadDeckFromTextarea(true)); 
+            shuffleButton.addEventListener('click', shuffleDeck);
+            drawButton.addEventListener('click', drawCard); 
+            resetButton.addEventListener('click', resetDeck); 
+            sortHandButton.addEventListener('click', sortHandToTop); 
+            levelUpButton.addEventListener('click', levelUp);
+
+            document.getElementById('damage-2-button').addEventListener('click', (e) => {
+                processDamage(parseInt(e.target.dataset.damage));
+            });
+            document.getElementById('damage-3-button').addEventListener('click', (e) => {
+                processDamage(parseInt(e.target.dataset.damage));
+            });
+
+            // ラジオボタン変更時のカウンター更新と状態保存リスナー
+            deckListContainer.addEventListener('change', (event) => {
+                if (event.target.type === 'radio') {
+                    updateCounters();
+                }
+            });
+            
+            // カウンター要素にクリックリスナーを設定
+            counterElements.forEach(counter => {
+                counter.addEventListener('click', () => {
+                    const locationId = counter.dataset.location;
+                    showCardModal(locationId);
+                });
+            });
+
+            closeModalButton.addEventListener('click', closeModal);
+            cardModal.addEventListener('click', (event) => {
+                if (event.target === cardModal) {
+                    closeModal();
+                }
+            });
+
+            // --- 初期化処理 ---
+            
+            const stateLoaded = loadState();
+
+            if (!stateLoaded) {
+                deckInput.value = deckDataCSV.trim();
+                loadDeckFromTextarea(false); 
+                resetDeck(); 
+                showStatus('セッション情報が見つからなかったため、デフォルトデッキでゲームを開始しました。', 'info');
+            }
+        });
+    </script>
+</body>
+</html>
+
