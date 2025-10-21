@@ -53,6 +53,7 @@
             flex-shrink: 0;
             /* 修正点: 右マージンを最小限に設定 (空欄を詰める) */
             margin-right: 0.5rem; 
+            min-width: 0; /* flexアイテムが縮むのを許可 */
         }
         .card-name-text {
             /* 画像がない場合に表示するカード名テキストのスタイル */
@@ -231,6 +232,7 @@ GIM/W124-098,4,何やってるんだろう、,0,0,クライマックス`;
             }
             
             function createCardImageUrl(cardCode) {
+                // WS公式サイトのカード画像URLを生成するロジック
                 if (!cardCode || !(cardCode.startsWith('UMA/') || cardCode.startsWith('GIM/'))) return null;
                 const parts = cardCode.split('/'); 
                 if (parts.length < 2) return null;
@@ -265,6 +267,7 @@ GIM/W124-098,4,何やってるんだろう、,0,0,クライマックス`;
                     input.classList.toggle('hidden', !show); 
                     
                     // 対応するラベルを取得し、hiddenクラスを適用
+                    // inputのidが "card-X-loc-exile" の場合、labelのfor属性もこれに一致する
                     const label = document.querySelector(`label[for="${input.id}"]`);
                     if (label) label.classList.toggle('hidden', !show);
                 });
@@ -304,7 +307,12 @@ GIM/W124-098,4,何やってるんだろう、,0,0,クライマックス`;
                             const savedLocation = locationMap.get(row.dataset.cardId);
                             if (savedLocation) {
                                 const targetRadio = row.querySelector(`input[value="${savedLocation}"]`);
-                                if (targetRadio) targetRadio.checked = true;
+                                // 追放領域が非表示設定の場合、強制的に山札にする
+                                if (savedLocation === 'exile' && !showExile) {
+                                    row.querySelector('input[value="deck"]').checked = true;
+                                } else if (targetRadio) {
+                                    targetRadio.checked = true;
+                                }
                             }
                         });
                         updateCounters();
@@ -348,7 +356,13 @@ GIM/W124-098,4,何やってるんだろう、,0,0,クライマックス`;
 
                     if (isImageCard) {
                         const imageUrl = createCardImageUrl(card.cardCode);
-                        cardInfo.innerHTML = `<div class="w-10 h-10 overflow-hidden rounded-md border border-gray-300 shadow mr-2 flex-shrink-0" title="${card.name} (Lv ${card.level})"><img src="${imageUrl}" alt="${card.name}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/40x40/cccccc/000000?text=Card'"></div>`;
+                        // 修正: カード名を表示するspanを追加し、Tailwindのレスポンシブクラスで表示を制御
+                        cardInfo.innerHTML = `
+                            <div class="w-10 h-10 overflow-hidden rounded-md border border-gray-300 shadow flex-shrink-0" title="${card.name} (Lv ${card.level})">
+                                <img src="${imageUrl}" alt="${card.name}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/40x40/cccccc/000000?text=Card'">
+                            </div>
+                            <span class="hidden sm:inline font-medium text-sm ml-2 truncate" title="${card.name}">${card.name}</span>
+                        `;
                     } else {
                         const levelText = card.type === 'クライマックス' ? 'CX' : card.level;
                         cardInfo.innerHTML = `<div class="flex items-center w-full"><span class="font-bold text-gray-700 w-3 inline-block text-center mr-2 flex-shrink-0">${levelText}</span> <span class="card-name-text">${card.name}</span></div>`;
@@ -358,7 +372,6 @@ GIM/W124-098,4,何やってるんだろう、,0,0,クライマックス`;
                     locationGroup.className = 'flex flex-nowrap gap-x-2 gap-y-1 location-radio-group';
                     locations.forEach(loc => {
                         const radioId = `card-${card.id}-loc-${loc.id}`;
-                        // 追放領域の初期hiddenはJavaScript側で制御するため削除
                         locationGroup.innerHTML += `<input type="radio" id="${radioId}" name="card-location-${card.id}" value="${loc.id}" ${loc.id === 'deck' ? 'checked' : ''}><label for="${radioId}">${loc.name}</label>`;
                     });
 
@@ -373,6 +386,40 @@ GIM/W124-098,4,何やってるんだろう、,0,0,クライマックス`;
                 document.querySelectorAll('input[type="radio"]:checked').forEach(radio => counts[radio.value]++);
                 locations.forEach(loc => document.getElementById(`count-${loc.id}`).textContent = counts[loc.id]);
                 saveState();
+            }
+            
+            /**
+             * リセット機能: 全て山札に戻し、シャッフルし、上から5枚を手札にする。
+             */
+            function resetDeck() {
+                let allRows = Array.from(deckListContainer.children);
+                
+                // 1. 全てのカードを山札にする
+                allRows.forEach(row => {
+                    const deckRadio = row.querySelector('input[value="deck"]');
+                    if (deckRadio) deckRadio.checked = true;
+                });
+                
+                // 2. 山札のカードをすべてシャッフル（全カードが山札なので全てシャッフルされる）
+                for (let i = allRows.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [allRows[i], allRows[j]] = [allRows[j], allRows[i]];
+                }
+                
+                // DOMを更新（シャッフルされた順序でリストに再配置）
+                deckListContainer.innerHTML = '';
+                allRows.forEach(node => deckListContainer.appendChild(node));
+                
+                // 3. 上から5枚を手札にする
+                const initialHandElements = Array.from(deckListContainer.children).slice(0, 5); 
+                initialHandElements.forEach(cardRow => {
+                    const handRadio = cardRow.querySelector('input[value="hand"]');
+                    if (handRadio) handRadio.checked = true;
+                });
+
+                updateCounters();
+                saveState(); 
+                showStatus('ゲームを初期化し、山札をシャッフル、上から5枚を手札にしました。', 'success');
             }
 
             function shuffleDeck() {
@@ -391,31 +438,6 @@ GIM/W124-098,4,何やってるんだろう、,0,0,クライマックス`;
                 showStatus('山札のカードのみをシャッフルしました。', 'success');
             }
             
-            function resetDeck() {
-                let allRows = Array.from(deckListContainer.children);
-                allRows.forEach(row => row.querySelector('input[value="deck"]')?.setAttribute('checked', 'true'));
-                for (let i = allRows.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [allRows[i], allRows[j]] = [allRows[j], allRows[i]];
-                }
-                deckListContainer.innerHTML = '';
-                allRows.forEach(node => deckListContainer.appendChild(node));
-                const initialHandElements = Array.from(deckListContainer.children).slice(0, 5); 
-                initialHandElements.forEach(cardRow => cardRow.querySelector('input[value="hand"]')?.setAttribute('checked', 'true'));
-                
-                const handNodes = initialHandElements;
-                const deckNodes = Array.from(deckListContainer.children).slice(5);
-                
-                handNodes.sort((a, b) => getLevelSortValue({ level: a.dataset.cardLevel, type: a.dataset.cardType }) - getLevelSortValue({ level: b.dataset.cardLevel, type: b.dataset.cardType }));
-
-                deckListContainer.innerHTML = '';
-                handNodes.forEach(node => deckListContainer.appendChild(node));
-                deckNodes.forEach(node => deckListContainer.appendChild(node));
-                updateCounters();
-                saveState(); 
-                showStatus('ゲームを初期化し、手札5枚をレベル順でリストの先頭に表示しました。', 'success');
-            }
-
             function loadDeckFromTextarea(shouldSave = true) {
                 const csvData = deckInput.value;
                 if (!csvData.trim()) return showStatus('デッキリストが入力されていません。', 'error');
@@ -453,7 +475,8 @@ GIM/W124-098,4,何やってるんだろう、,0,0,クライマックス`;
             function drawCard() {
                 const topCardRow = Array.from(deckListContainer.children).find(row => row.querySelector('input[value="deck"]:checked'));
                 if (!topCardRow) return showStatus('山札にカードがありません。', 'error');
-                topCardRow.querySelector('input[value="hand"]').checked = true;
+                const handRadio = topCardRow.querySelector('input[value="hand"]');
+                if (handRadio) handRadio.checked = true;
                 updateCounters();
                 showStatus(`${topCardRow.dataset.cardName} をドローしました。`, 'info');
             }
@@ -468,7 +491,10 @@ GIM/W124-098,4,何やってるんだろう、,0,0,クライマックス`;
                     if (deckCards[i].dataset.cardType === 'クライマックス') { isCanceled = true; break; }
                 }
                 let targetLocation = isCanceled ? 'waiting' : 'clock';
-                flippedCards.forEach(cardRow => cardRow.querySelector(`input[value="${targetLocation}"]`).checked = true);
+                flippedCards.forEach(cardRow => {
+                    const targetRadio = cardRow.querySelector(`input[value="${targetLocation}"]`);
+                    if (targetRadio) targetRadio.checked = true;
+                });
                 updateCounters();
                 let message = `${damage}点ダメージ！ ${flippedCards.length}枚目でCXが${isCanceled ? '出てキャンセル' : '出ず通りました'}。`;
                 showStatus(message, isCanceled ? 'success' : 'error');
@@ -478,30 +504,50 @@ GIM/W124-098,4,何やってるんだろう、,0,0,クライマックス`;
                 const clockCards = Array.from(deckListContainer.children).filter(row => row.querySelector('input[value="clock"]:checked'));
                 if (clockCards.length < 6) return showStatus(`クロックが6枚未満です。`, 'error');
                 const cardsToMove = clockCards.slice(0, 6);
-                cardsToMove.forEach(cardRow => cardRow.querySelector(`input[value="waiting"]`).checked = true);
+                cardsToMove.forEach(cardRow => {
+                    const waitingRadio = cardRow.querySelector(`input[value="waiting"]`);
+                    if (waitingRadio) waitingRadio.checked = true;
+                });
                 updateCounters(); 
                 showStatus(`クロックの上から6枚を控え室に送りました。`, 'success');
             }
             
+            /**
+             * モーダル表示機能: カード画像とカード名を表示する
+             */
             function showCardModal(locationId) {
                 const locationName = locations.find(loc => loc.id === locationId)?.name || locationId;
                 modalTitle.textContent = `${locationName} のカード一覧`;
                 modalContent.innerHTML = ''; 
                 const targetCards = Array.from(deckListContainer.children).filter(row => row.querySelector(`input[value="${locationId}"]:checked`));
+                
                 if (targetCards.length === 0) {
                     modalContent.innerHTML = '<p class="text-gray-500">この場所には現在カードがありません。</p>';
                 } else {
                     targetCards.forEach(cardRow => {
                         const { cardName, cardLevel, cardType, cardCode } = cardRow.dataset;
                         const cardElement = document.createElement('div');
-                        cardElement.className = 'p-2 bg-gray-50 border border-gray-200 rounded-md text-sm flex items-center';
+                        // リストアイテムのスタイル
+                        cardElement.className = 'p-3 bg-white border border-gray-200 rounded-lg shadow-sm text-sm flex items-center';
+                        
                         const isImageCard = cardCode.startsWith('UMA/') || cardCode.startsWith('GIM/');
+                        
                         if (isImageCard) {
                             const imageUrl = createCardImageUrl(cardCode);
-                            cardElement.innerHTML = `<div class="w-16 h-16 overflow-hidden rounded-md border border-gray-300 shadow mr-3 flex-shrink-0" title="${cardName} (Lv ${cardLevel})"><img src="${imageUrl}" alt="${cardName}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/64x64/cccccc/000000?text=Card'"></div><span class="font-medium text-base text-gray-800">${cardName}</span>`;
+                            // 画像を表示し、画像がない場合はプレースホルダーを表示
+                            cardElement.innerHTML = `
+                                <div class="w-16 h-16 overflow-hidden rounded-md border border-gray-300 shadow mr-4 flex-shrink-0" title="${cardName} (Lv ${cardLevel})">
+                                    <img src="${imageUrl}" alt="${cardName}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/64x64/cccccc/000000?text=Card'">
+                                </div>
+                                <span class="font-semibold text-gray-800 text-base">${cardName}</span>
+                            `;
                         } else {
+                            // 画像がない場合はレベルと名前のみ
                             const levelText = cardType === 'クライマックス' ? 'CX' : cardLevel;
-                            cardElement.innerHTML = `<span class="font-bold text-gray-700 w-4 inline-block text-center mr-2">${levelText}</span> ${cardName}`;
+                            cardElement.innerHTML = `
+                                <span class="font-bold text-gray-700 w-4 inline-block text-center mr-3 text-lg flex-shrink-0">${levelText}</span> 
+                                <span class="font-semibold text-gray-800 text-base">${cardName}</span>
+                            `;
                         }
                         modalContent.appendChild(cardElement);
                     });
@@ -514,8 +560,8 @@ GIM/W124-098,4,何やってるんだろう、,0,0,クライマックス`;
             // --- Event Listeners ---
             loadDeckButton.addEventListener('click', () => loadDeckFromTextarea(true)); 
             shuffleButton.addEventListener('click', shuffleDeck);
+            resetButton.addEventListener('click', resetDeck); // リセット関数の更新
             drawButton.addEventListener('click', drawCard); 
-            resetButton.addEventListener('click', resetDeck); 
             sortHandButton.addEventListener('click', sortHandToTop); 
             levelUpButton.addEventListener('click', levelUp);
             document.getElementById('damage-2-button').addEventListener('click', (e) => processDamage(parseInt(e.target.dataset.damage)));
@@ -530,7 +576,7 @@ GIM/W124-098,4,何やってるんだろう、,0,0,クライマックス`;
             closeSettingsModalButton.addEventListener('click', () => closeModal(settingsModal));
             settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) closeModal(settingsModal); });
             
-            // 設定変更の処理
+            // 設定変更の処理 (追放領域表示/非表示)
             showExileToggle.addEventListener('change', (e) => {
                 toggleExileVisibility(e.target.checked);
                 saveState(); // 設定変更を即座に保存
@@ -546,3 +592,4 @@ GIM/W124-098,4,何やってるんだろう、,0,0,クライマックス`;
     </script>
 </body>
 </html>
+
