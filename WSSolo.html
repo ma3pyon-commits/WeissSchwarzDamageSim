@@ -167,25 +167,28 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // [修正] デフォルトデッキを YRC (ゆるキャン△) に変更
+            // [修正] デフォルトデッキを 角川スニーカー文庫 に変更
             const deckDataCSV = `カード番号,枚数,カード名,レベル,コスト,種類
-YRC/W116-003,2,みずがき湖を眺めて あおい,3,2,キャラ
-YRC/W116-038,3,薪割りの達人 なでしこ,3,2,キャラ
-YRC/W116-T18,3,スッキリカット 千明,3,2,キャラ
-YRC/W116-037,2,花よりまんじゅう あおい,2,2,キャラ
-YRC/W116-059,2,やきとりを頬張って あおい,2,2,キャラ
-YRC/W116-035,2,コンセプト力説 千明,2,1,キャラ
-YRC/W116-036,1,ソーセージを頬張って なでしこ,2,1,キャラ
-YRC/W116-024,2,語り部 あおい,1,1,キャラ
-YRC/W116-048,4,お先にどうぞ あおい,1,1,キャラ
-YRC/W116-022,3,中津川メイ,1,0,キャラ
-YRC/W116-001,4,キャンプ場でおさんぽ 恵那＆はんぺん＆ちくわ,0,0,キャラ
-YRC/W116-021,4,回想キャンプ あおい,0,0,キャラ
-YRC/W116-029,3,プチソロキャン なでしこ,0,0,キャラ
-YRC/W116-032,4,プチソロキャン 千明,0,0,キャラ
-YRC/W116-051,3,桜めぐり 桜,0,0,キャラ
-YRC/W116-062,4,ソロキャンの暇つぶし,0,0,クライマックス
-YRC/W116-063,4,春風の中で,0,0,クライマックス`;
+Shm/W123-075,1,発火少女 ホムラ,3,2,キャラ
+Sks/W123-093,4,サマーバケーション めぐみん,3,2,キャラ
+Snw/W62-083,1,第506統合戦闘航空団 ハインリーケ,3,2,キャラ
+Srd/W123-021,1,修行の成果 綾乃,2,1,キャラ
+Stm/W123-114,1,再会した、かつての親友 春希,2,1,キャラ
+Sks/W123-010,4,冒険者（最弱職） カズマ,1,0,キャラ
+Srd/W123-002,4,深窓のおひい様 有希,1,0,キャラ
+Ssn/W123-001,4,ツン期の終わった元ツンデレ リット,1,0,キャラ
+Shh/W123-117,1,アフターストーリー ハユル＆愛音＆傷無＆ユリシア,0,0,キャラ
+Sks/W123-T10,4,35th Anniversary めぐみん,0,0,キャラ
+Srd/W123-019,4,アドケナリン 有希,0,0,キャラ
+Srd/W123-T11,1,思い出の場所 マーシャ,0,0,キャラ
+Ssn/W123-004,1,幸せな日々 リット＆レッド,0,0,キャラ
+Ssy/W123-007,2,親友 佐々木,0,0,キャラ
+Ssy/W123-017,1,雑用係 キョン,0,0,キャラ
+Ssy/W62-050,4,猪突猛進 ハルヒ,0,0,キャラ
+Stk/W123-T09,1,35th Anniversary 結女,0,0,キャラ
+Scn/W123-125,3,恋人旅行,3,1,イベント
+Sks/W123-023,4,爆裂魔法,0,0,クライマックス
+Srd/W123-024,4,可愛い妹による寝起きボディープレス,0,0,クライマックス`;
 
             const locations = [
                 { id: 'hand', name: '手札' }, { id: 'stage', name: '舞台' },
@@ -230,33 +233,47 @@ YRC/W116-063,4,春風の中で,0,0,クライマックス`;
                 setTimeout(() => { statusMessage.classList.remove('opacity-100'); statusMessage.classList.add('hidden'); }, 5000);
             }
             
+            function isImageCardSupported(cardCode) {
+                if (!cardCode) return false;
+                // [修正] W62, W123 を画像判定に追加
+                return cardCode.startsWith('UMA/') || 
+                       cardCode.startsWith('GIM/') || 
+                       cardCode.startsWith('YRC/') ||
+                       cardCode.includes('/W62-') ||  // スニーカー文庫 (旧)
+                       cardCode.includes('/W123-'); // スニーカー文庫 (新)
+            }
+            
             function createCardImageUrl(cardCode) {
-                // [修正] YRC (ゆるキャン△) のプレフィックスに対応
-                if (!cardCode || !(cardCode.startsWith('UMA/') || cardCode.startsWith('GIM/') || cardCode.startsWith('YRC/'))) return null;
+                if (!isImageCardSupported(cardCode)) return null;
                 
                 const parts = cardCode.split('/'); 
                 if (parts.length < 2) return null;
-                const seriesPrefix = parts[0].toLowerCase(); // "uma", "gim", "yrc"
+                
+                const seriesPrefix = parts[0].toLowerCase(); // "uma", "gim", "yrc", "ssy", "sks" etc.
                 const fullCardId = parts[1]; 
                 
-                // [修正] seriesPrefix に応じてサブディレクトリ文字を決定
-                let subDirectoryChar = null;
-                if (seriesPrefix === 'uma') {
-                    subDirectoryChar = 'u';
-                } else if (seriesPrefix === 'gim') {
-                    subDirectoryChar = 'g';
-                } else if (seriesPrefix === 'yrc') {
-                    subDirectoryChar = 'y';
-                }
+                // サブディレクトリ文字 (u, g, y, s, etc.)
+                let subDirectoryChar = seriesPrefix.charAt(0).toLowerCase();
 
-                if (!subDirectoryChar || !fullCardId.includes('-')) return null;
+                if (!fullCardId.includes('-')) return null;
                 const idParts = fullCardId.split('-'); 
                 if (idParts.length < 2) return null; 
-                const setCode = idParts[0].toLowerCase(); 
+                
+                const setCode = idParts[0].toLowerCase(); // "w106", "w124", "w116", "w62", "w123"
                 const cardSuffix = idParts[1].toLowerCase(); 
-                const directoryName = seriesPrefix + "_" + setCode; 
-                const fileName = directoryName + "_" + cardSuffix + ".png";
+                
+                let directoryName = "";
+                
+                // [修正] W123 (スニーカー文庫) の特別ルール
+                if (setCode === 'w123') {
+                    directoryName = 'sxx_w123'; // ユーザー指定の例外ルール
+                } else {
+                    directoryName = seriesPrefix + "_" + setCode;
+                }
+                
+                const fileName = seriesPrefix + "_" + setCode + "_" + cardSuffix + ".png";
                 const baseUrl = 'https://ws-tcg.com/wordpress/wp-content/images/cardlist/';
+                
                 return baseUrl + subDirectoryChar + '/' + directoryName + '/' + fileName;
             }
 
@@ -351,8 +368,7 @@ YRC/W116-063,4,春風の中で,0,0,クライマックス`;
                     
                     const cardInfo = document.createElement('div');
                     cardInfo.className = 'card-info-box text-sm'; 
-                    // [修正] YRC を画像判定に追加
-                    const isImageCard = card.cardCode.startsWith('UMA/') || card.cardCode.startsWith('GIM/') || card.cardCode.startsWith('YRC/');
+                    const isImageCard = isImageCardSupported(card.cardCode);
 
                     if (isImageCard) {
                         const imageUrl = createCardImageUrl(card.cardCode);
@@ -517,8 +533,7 @@ YRC/W116-063,4,春風の中で,0,0,クライマックス`;
                         const cardElement = document.createElement('div');
                         cardElement.className = 'p-3 bg-white border border-gray-200 rounded-lg shadow-sm text-sm flex items-center';
                         
-                        // [修正] YRC を画像判定に追加
-                        const isImageCard = cardCode.startsWith('UMA/') || cardCode.startsWith('GIM/') || cardCode.startsWith('YRC/');
+                        const isImageCard = isImageCardSupported(cardCode);
                         
                         if (isImageCard) {
                             const imageUrl = createCardImageUrl(cardCode);
