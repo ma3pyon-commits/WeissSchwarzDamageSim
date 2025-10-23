@@ -87,6 +87,12 @@
                         <label for="simulations" class="block text-sm font-medium text-gray-700">シミュレーション回数(1000以上を推奨)</label>
                         <input type="number" id="simulations" value="50000" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
                     </div>
+                    
+                    <!-- 画像出力時の最大表示点数 (新規追加) -->
+                    <div>
+                        <label for="imageMaxDamage" class="block text-sm font-medium text-gray-700">画像出力時の最大表示点数</label>
+                        <input type="number" id="imageMaxDamage" value="10" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="空欄で自動">
+                    </div>
                 </div>
 
                 <button id="runButton" onclick="handleSimulation()" class="mt-6 w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
@@ -121,7 +127,7 @@
         
         <!-- 署名フッター -->
         <footer class="mt-8 text-center text-sm text-gray-500 p-4">
-            <p>ヴァイスは確率じゃない – PineAme@tcepseredutitta</p>
+            <p>ヴァイスは確率ではない – PineAme@tcepseredutitta</p>
         </footer>
         <!---------------------->
 
@@ -217,6 +223,7 @@
             localStorage.setItem('ws_damages', document.getElementById('damages').value);
             localStorage.setItem('ws_simulations', document.getElementById('simulations').value);
             localStorage.setItem('ws_refreshToggle', document.getElementById('refreshToggle').checked);
+            localStorage.setItem('ws_imageMaxDamage', document.getElementById('imageMaxDamage').value); // 新規追加
         }
 
         /**
@@ -229,12 +236,13 @@
             const damagesInput = document.getElementById('damages');
             const simulationsInput = document.getElementById('simulations');
             const refreshToggleInput = document.getElementById('refreshToggle');
+            const imageMaxDamageInput = document.getElementById('imageMaxDamage'); // 新規追加
 
             deckSizeInput.value = localStorage.getItem('ws_deckSize') || deckSizeInput.value;
             cxCountInput.value = localStorage.getItem('ws_cxCount') || cxCountInput.value;
-            // 初期値を1,3,3,3に設定 (修正済み)
             damagesInput.value = localStorage.getItem('ws_damages') || "1,3,3,3";
             simulationsInput.value = localStorage.getItem('ws_simulations') || simulationsInput.value;
+            imageMaxDamageInput.value = localStorage.getItem('ws_imageMaxDamage') || imageMaxDamageInput.value; // 新規追加
             
             const refreshToggleValue = localStorage.getItem('ws_refreshToggle');
             if (refreshToggleValue !== null) {
@@ -771,14 +779,20 @@
                     </div>
                     <div style="font-size: 1rem; line-height: 1.5; color: #374151; display: flex; flex-direction: column; gap: 8px;">
             `;
+            
+            // 修正: 画像出力の最大表示点数を取得
+            const imageMaxDamage = parseInt(document.getElementById('imageMaxDamage').value) || 0;
+            const loopLimit = imageMaxDamage > 0 ? imageMaxDamage : maxDamageResult;
 
             // Data rows
-            for (let d = 1; d <= maxDamageResult; d++) {
+            for (let d = 1; d <= loopLimit; d++) {
                 const prob = probabilities[d] || 0.0;
                 const percentage = (prob * 100);
 
-                // Constraint: 1.00%以下は出力不要
-                if (percentage <= 1.00) continue;
+                // 修正: 指定された最大表示点数がある場合は1%以下のフィルタリングを無効化
+                if (imageMaxDamage === 0 && percentage <= 1.00) {
+                    continue;
+                }
 
                 const percentageString = percentage.toFixed(2);
                 const barWidth = Math.max(parseFloat(percentage), 1);
