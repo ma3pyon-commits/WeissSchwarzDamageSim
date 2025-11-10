@@ -969,10 +969,11 @@
         }
 
 
-        // ページロード時: 1. 設定を読み込む -> 2. シミュレーションを自動実行する
+        // ページロード時: 1. 設定を読み込む
         window.onload = () => {
              loadSettings(); // 保持した設定をロード
-             handleSimulation().catch(e => console.log("初期シミュレーションエラー:", e));
+             // ページロード時の自動実行を削除
+             // handleSimulation().catch(e => console.log("初期シミュレーションエラー:", e));
         };
     </script>
 </body>
