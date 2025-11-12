@@ -143,7 +143,8 @@
                 <h3 id="modal-title" class="text-xl font-bold text-gray-800">カードリスト</h3>
                 <button id="close-card-modal" class="text-gray-500 hover:text-gray-800 text-2xl font-semibold leading-none">&times;</button>
             </div>
-            <div id="modal-content" class="space-y-2"></div>
+            <!-- [修正] JavaScript側でレイアウトを変更するため、space-y-2 を削除 -->
+            <div id="modal-content"></div>
             <div class="mt-4 text-sm text-gray-600">※このリストの順番は、ゲーム内の配置順とは必ずしも一致しません。</div>
         </div>
     </div>
@@ -163,32 +164,39 @@
             </div>
         </div>
     </div>
+    
+    <!-- [新規追加] 画像拡大表示用モーダル -->
+    <div id="image-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-[60]">
+        <div class="relative p-4">
+            <button id="close-image-modal" class="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-lg text-gray-800 hover:text-red-500 z-10">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            <img id="image-modal-content" src="" alt="カード画像" class="max-w-[80vw] max-h-[80vh] rounded-lg shadow-xl">
+        </div>
+    </div>
 
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // [修正] デフォルトデッキを 角川スニーカー文庫 に変更
             const deckDataCSV = `カード番号,枚数,カード名,レベル,コスト,種類
-Shm/W123-075,1,発火少女 ホムラ,3,2,キャラ
-Sks/W123-093,4,サマーバケーション めぐみん,3,2,キャラ
-Snw/W62-083,1,第506統合戦闘航空団 ハインリーケ,3,2,キャラ
-Srd/W123-021,1,修行の成果 綾乃,2,1,キャラ
-Stm/W123-114,1,再会した、かつての親友 春希,2,1,キャラ
-Sks/W123-010,4,冒険者（最弱職） カズマ,1,0,キャラ
-Srd/W123-002,4,深窓のおひい様 有希,1,0,キャラ
-Ssn/W123-001,4,ツン期の終わった元ツンデレ リット,1,0,キャラ
-Shh/W123-117,1,アフターストーリー ハユル＆愛音＆傷無＆ユリシア,0,0,キャラ
-Sks/W123-T10,4,35th Anniversary めぐみん,0,0,キャラ
-Srd/W123-019,4,アドケナリン 有希,0,0,キャラ
-Srd/W123-T11,1,思い出の場所 マーシャ,0,0,キャラ
-Ssn/W123-004,1,幸せな日々 リット＆レッド,0,0,キャラ
-Ssy/W123-007,2,親友 佐々木,0,0,キャラ
-Ssy/W123-017,1,雑用係 キョン,0,0,キャラ
-Ssy/W62-050,4,猪突猛進 ハルヒ,0,0,キャラ
-Stk/W123-T09,1,35th Anniversary 結女,0,0,キャラ
-Scn/W123-125,3,恋人旅行,3,1,イベント
-Sks/W123-023,4,爆裂魔法,0,0,クライマックス
-Srd/W123-024,4,可愛い妹による寝起きボディープレス,0,0,クライマックス`;
+KMS/W133-003,1,のびやかな女の子 カレン,3,2,キャラ
+KMS/W133-004,4,15th Anniversary アリス,3,2,キャラ
+KMS/W133-019,1,離れていても アリス＆アリスマム,3,2,キャラ
+KMS/W133-038,1,大好きな2人 忍＆アリス,2,1,キャラ
+KMS/W133-084,1,中学校からの友達 忍＆綾,2,1,キャラ
+KMS/W133-002,4,15th Anniversary カレン,1,0,キャラ
+KMS/W133-008,4,ちっちゃくたって アリス,1,0,キャラ
+KMS/W133-001,4,すこやかな女の子 アリス,0,0,キャラ
+KMS/W133-006,4,2人の金髪少女 アリス＆カレン,0,0,キャラ
+KMS/W133-013,4,夏休みの行先 カレン,0,0,キャラ
+KMS/W133-036,4,頼れるお姉ちゃん 勇,0,0,キャラ
+KMS/W133-079,4,15th Anniversary 綾,0,0,キャラ
+KMS/W133-T10,4,2-A担任 久世橋先生,0,0,キャラ
+KMS/W133-028,2,友達なんだから,1,1,イベント
+KMS/W133-029,4,みんなからの人気者,0,0,クライマックス
+KMS/W133-030,4,金髪の天使,0,0,クライマックス`;
 
             const locations = [
                 { id: 'hand', name: '手札' }, { id: 'stage', name: '舞台' },
@@ -208,13 +216,18 @@ Srd/W123-024,4,可愛い妹による寝起きボディープレス,0,0,クライ
             const deckInput = document.getElementById('deck-input');
             const statusMessage = document.getElementById('status-message'); 
             
-            // モーダル関連要素
+            // カードモーダル関連要素
             const cardModal = document.getElementById('card-modal');
             const modalTitle = document.getElementById('modal-title');
             const modalContent = document.getElementById('modal-content');
             const closeCardModalButton = document.getElementById('close-card-modal');
             const counterElements = document.querySelectorAll('#counters > div[data-location]'); 
             
+            // [新規追加] 画像拡大モーダル関連要素
+            const imageModal = document.getElementById('image-modal');
+            const imageModalContent = document.getElementById('image-modal-content');
+            const closeImageModalButton = document.getElementById('close-image-modal');
+
             // 設定モーダル関連要素
             const settingsModal = document.getElementById('settings-modal');
             const settingsButton = document.getElementById('settings-button');
@@ -233,47 +246,54 @@ Srd/W123-024,4,可愛い妹による寝起きボディープレス,0,0,クライ
                 setTimeout(() => { statusMessage.classList.remove('opacity-100'); statusMessage.classList.add('hidden'); }, 5000);
             }
             
+            // [新規追加] 画像拡大モーダル表示
+            function showImageModal(imageUrl) {
+                if (!imageUrl || imageUrl === 'null') {
+                     imageModalContent.src = 'https://placehold.co/400x559/cccccc/000000?text=NO+IMAGE';
+                } else {
+                     imageModalContent.src = imageUrl;
+                }
+                imageModal.classList.remove('hidden');
+                imageModal.classList.add('flex');
+            }
+            
+            // [新規追加] 画像拡大モーダル非表示
+            function closeImageModal() {
+                imageModal.classList.add('hidden');
+                imageModal.classList.remove('flex');
+                imageModalContent.src = '';
+            }
+            
+            // [新規追加] グローバルスコープに公開 (HTMLのonclickから呼ぶため)
+            window.showImageModal = showImageModal;
+
             function isImageCardSupported(cardCode) {
                 if (!cardCode) return false;
-                // [修正] W62, W123 を画像判定に追加
                 return cardCode.startsWith('UMA/') || 
                        cardCode.startsWith('GIM/') || 
                        cardCode.startsWith('YRC/') ||
-                       cardCode.includes('/W62-') ||  // スニーカー文庫 (旧)
-                       cardCode.includes('/W123-'); // スニーカー文庫 (新)
+                       cardCode.startsWith('KMS/') ||
+                       cardCode.includes('/W62-') ||
+                       cardCode.includes('/W123-');
             }
             
             function createCardImageUrl(cardCode) {
                 if (!isImageCardSupported(cardCode)) return null;
-                
                 const parts = cardCode.split('/'); 
                 if (parts.length < 2) return null;
-                
-                const seriesPrefix = parts[0].toLowerCase(); // "uma", "gim", "yrc", "ssy", "sks" etc.
+                const seriesPrefix = parts[0].toLowerCase();
                 const fullCardId = parts[1]; 
-                
-                // サブディレクトリ文字 (u, g, y, s, etc.)
                 let subDirectoryChar = seriesPrefix.charAt(0).toLowerCase();
-
                 if (!fullCardId.includes('-')) return null;
                 const idParts = fullCardId.split('-'); 
                 if (idParts.length < 2) return null; 
-                
-                const setCode = idParts[0].toLowerCase(); // "w106", "w124", "w116", "w62", "w123"
+                const setCode = idParts[0].toLowerCase();
                 const cardSuffix = idParts[1].toLowerCase(); 
-                
                 let directoryName = "";
-                
-                // [修正] W123 (スニーカー文庫) の特別ルール
-                if (setCode === 'w123') {
-                    directoryName = 'sxx_w123'; // ユーザー指定の例外ルール
-                } else {
-                    directoryName = seriesPrefix + "_" + setCode;
-                }
-                
+                if (setCode === 'w123') directoryName = 'sxx_w123';
+                else directoryName = seriesPrefix + "_" + setCode;
                 const fileName = seriesPrefix + "_" + setCode + "_" + cardSuffix + ".png";
                 const baseUrl = 'https://ws-tcg.com/wordpress/wp-content/images/cardlist/';
-                
                 return baseUrl + subDirectoryChar + '/' + directoryName + '/' + fileName;
             }
 
@@ -282,7 +302,6 @@ Srd/W123-024,4,可愛い妹による寝起きボディープレス,0,0,クライ
             function toggleExileVisibility(show) {
                 const exileCounter = document.querySelector('div[data-location="exile"]');
                 if (exileCounter) exileCounter.classList.toggle('hidden', !show);
-
                 document.querySelectorAll('input[value="exile"]').forEach(input => {
                     input.classList.toggle('hidden', !show); 
                     const label = document.querySelector(`label[for="${input.id}"]`);
@@ -309,15 +328,11 @@ Srd/W123-024,4,可愛い妹による寝起きボディープレス,0,0,クライ
                     const savedState = localStorage.getItem('wsToolState');
                     if (!savedState) return false; 
                     const state = JSON.parse(savedState);
-                    
                     const showExile = state.showExile === true;
                     showExileToggle.checked = showExile;
-
                     deckInput.value = state.deckCsv || deckDataCSV.trim();
-                    loadDeckFromTextarea(false); // カードDOM生成
-
-                    toggleExileVisibility(showExile); // 生成されたカードのラジオボタンとカウンターに適用
-                    
+                    loadDeckFromTextarea(false);
+                    toggleExileVisibility(showExile);
                     if (state.cardLocations?.length > 0) {
                         const locationMap = new Map(state.cardLocations.map(cl => [cl.id.toString(), cl.location]));
                         Array.from(deckListContainer.children).forEach(row => {
@@ -372,9 +387,10 @@ Srd/W123-024,4,可愛い妹による寝起きボディープレス,0,0,クライ
 
                     if (isImageCard) {
                         const imageUrl = createCardImageUrl(card.cardCode);
+                        // [修正] onclickで画像拡大モーダルを呼ぶ
                         cardInfo.innerHTML = `
-                            <div class="w-10 h-10 overflow-hidden rounded-md border border-gray-300 shadow flex-shrink-0" title="${card.name} (Lv ${card.level})">
-                                <img src="${imageUrl}" alt="${card.name}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/40x40/cccccc/000000?text=Card'">
+                            <div class="w-10 h-10 overflow-hidden rounded-md border border-gray-300 shadow flex-shrink-0 cursor-pointer" title="${card.name} (Lv ${card.level})" onclick="showImageModal('${imageUrl}')">
+                                <img src="${imageUrl}" alt="${card.name}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/40x40/cccccc/000000?text=Card';">
                             </div>
                             <span class="hidden sm:inline font-medium text-sm ml-2 truncate" title="${card.name}">${card.name}</span>
                         `;
@@ -405,26 +421,21 @@ Srd/W123-024,4,可愛い妹による寝起きボディープレス,0,0,クライ
             
             function resetDeck() {
                 let allRows = Array.from(deckListContainer.children);
-                
                 allRows.forEach(row => {
                     const deckRadio = row.querySelector('input[value="deck"]');
                     if (deckRadio) deckRadio.checked = true;
                 });
-                
                 for (let i = allRows.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [allRows[i], allRows[j]] = [allRows[j], allRows[i]];
                 }
-                
                 deckListContainer.innerHTML = '';
                 allRows.forEach(node => deckListContainer.appendChild(node));
-                
                 const initialHandElements = Array.from(deckListContainer.children).slice(0, 5); 
                 initialHandElements.forEach(cardRow => {
                     const handRadio = cardRow.querySelector('input[value="hand"]');
                     if (handRadio) handRadio.checked = true;
                 });
-
                 updateCounters();
                 saveState(); 
                 showStatus('ゲームを初期化し、山札をシャッフル、上から5枚を手札にしました。', 'success');
@@ -519,32 +530,50 @@ Srd/W123-024,4,可愛い妹による寝起きボディープレス,0,0,クライ
                 showStatus(`クロックの上から6枚を控え室に送りました。`, 'success');
             }
             
+            /**
+             * [修正] カウンターモーダル表示機能
+             * 画像カードの場合は画像のみをグリッド表示、テキストカードの場合はテキストのみをリスト表示
+             */
             function showCardModal(locationId) {
                 const locationName = locations.find(loc => loc.id === locationId)?.name || locationId;
                 modalTitle.textContent = `${locationName} のカード一覧`;
                 modalContent.innerHTML = ''; 
+                
                 const targetCards = Array.from(deckListContainer.children).filter(row => row.querySelector(`input[value="${locationId}"]:checked`));
                 
                 if (targetCards.length === 0) {
+                    modalContent.className = 'space-y-2'; // デフォルト
                     modalContent.innerHTML = '<p class="text-gray-500">この場所には現在カードがありません。</p>';
                 } else {
+                    // 最初のカードで画像モードかテキストモードか判断
+                    const isImageMode = targetCards.length > 0 && isImageCardSupported(targetCards[0].dataset.cardCode);
+                    
+                    if (isImageMode) {
+                        // 画像モード: グリッドレイアウト
+                        modalContent.className = 'flex flex-wrap gap-2 justify-center';
+                    } else {
+                        // テキストモード: 縦積みリスト
+                        modalContent.className = 'space-y-2';
+                    }
+
                     targetCards.forEach(cardRow => {
                         const { cardName, cardLevel, cardType, cardCode } = cardRow.dataset;
                         const cardElement = document.createElement('div');
-                        cardElement.className = 'p-3 bg-white border border-gray-200 rounded-lg shadow-sm text-sm flex items-center';
-                        
                         const isImageCard = isImageCardSupported(cardCode);
                         
                         if (isImageCard) {
                             const imageUrl = createCardImageUrl(cardCode);
+                            // [修正] 画像のみ表示 (グリッドアイテム)
+                            cardElement.className = 'flex items-center justify-center'; // グリッドレイアウト用
                             cardElement.innerHTML = `
-                                <div class="w-16 h-16 overflow-hidden rounded-md border border-gray-300 shadow mr-4 flex-shrink-0" title="${cardName} (Lv ${cardLevel})">
-                                    <img src="${imageUrl}" alt="${cardName}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/64x64/cccccc/000000?text=Card'">
+                                <div class="w-20 h-20 overflow-hidden rounded-md border border-gray-300 shadow cursor-pointer" title="${cardName} (Lv ${cardLevel})" onclick="showImageModal('${imageUrl}')">
+                                    <img src="${imageUrl}" alt="${cardName}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/80x80/cccccc/000000?text=Card';">
                                 </div>
-                                <span class="font-semibold text-gray-800 text-base">${cardName}</span>
                             `;
                         } else {
+                            // テキスト表示 (縦積みアイテム)
                             const levelText = cardType === 'クライマックス' ? 'CX' : cardLevel;
+                            cardElement.className = 'p-3 bg-white border border-gray-200 rounded-lg shadow-sm text-sm flex items-center w-full';
                             cardElement.innerHTML = `
                                 <span class="font-bold text-gray-700 w-4 inline-block text-center mr-3 text-lg flex-shrink-0">${levelText}</span> 
                                 <span class="font-semibold text-gray-800 text-base">${cardName}</span>
@@ -573,6 +602,16 @@ Srd/W123-024,4,可愛い妹による寝起きボディープレス,0,0,クライ
             // Modal Listeners
             closeCardModalButton.addEventListener('click', () => closeModal(cardModal));
             cardModal.addEventListener('click', (e) => { if (e.target === cardModal) closeModal(cardModal); });
+            
+            // [新規追加] Image Modal Listeners
+            closeImageModalButton.addEventListener('click', closeImageModal);
+            imageModal.addEventListener('click', (e) => {
+                if (e.target === imageModal) {
+                    closeImageModal();
+                }
+            });
+
+            // Settings Modal Listeners
             settingsButton.addEventListener('click', () => { settingsModal.classList.remove('hidden'); settingsModal.classList.add('flex'); });
             closeSettingsModalButton.addEventListener('click', () => closeModal(settingsModal));
             settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) closeModal(settingsModal); });
@@ -592,4 +631,3 @@ Srd/W123-024,4,可愛い妹による寝起きボディープレス,0,0,クライ
     </script>
 </body>
 </html>
-
