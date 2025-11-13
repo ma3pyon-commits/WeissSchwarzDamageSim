@@ -73,7 +73,8 @@
                                 説明を見る
                             </button>
                         </div>
-                        <input type="text" id="damages" value="1,3,3,3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="例: 4,3c,2m,3u,1b">
+                        <!-- プレースホルダーを更新 -->
+                        <input type="text" id="damages" value="1,3,3,3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="例: 4,3c,2m,3u,1b,5s">
                     </div>
 
                     <!-- リフレッシュダメージON/OFF -->
@@ -152,9 +153,11 @@
                     <ul class="list-disc list-inside space-y-2 pl-4">
                         <li><strong class="font-mono text-indigo-600">N</strong>: Nダメージ (N点ダメージを実行)</li>
                         <li><strong class="font-mono text-indigo-600">Nb</strong>: N枚逆圧縮 (N枚のCXでないカードを山札に加えてシャッフル)</li>
-                        <li><strong class="font-mono text-indigo-600">Nu</strong>: 1枚トップ盛り + Nダメージ (CXでないカードをトップに追加後、Nダメージ)</li>
+                        <li><strong class="font-mono text-indigo-600">Nu</strong>: 1枚トップ盛り + Nダメージ (CXでないカードをトップに追加後、Nダメージ)※マックイーン</li>
                         <li><strong class="font-mono text-indigo-600">Nm</strong>: モカ + Nダメージ (トップ2枚操作後、Nダメージ)</li>
                         <li><strong class="font-mono text-indigo-600">Nc</strong>: 直前がキャンセル時 Nダメージ (直前のダメージがキャンセルされていた場合のみNダメージを実行)</li>
+                        <!-- Ns の説明を追加 -->
+                        <li><strong class="font-mono text-indigo-600">Ns</strong>: 山札下N枚墓地送りCXダメージ (山札下N枚を控え室に送り、その中のCX枚数ダメージ)※N枚みちる</li>
                     </ul>
                 </div>
                 <button onclick="closeExplanationModal()" class="mt-6 w-full py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition">閉じる</button>
@@ -204,7 +207,8 @@
              hasMoka: boolean, 
              hasUnCXTop: boolean,
              hasBuryShuffle: boolean,
-             hasConditionalCancel: boolean
+             hasConditionalCancel: boolean,
+             hasBottomScrape: boolean
            }} DamageItem 
         */
 
@@ -360,6 +364,33 @@
                 // 山札をシャッフル
                 this._shuffle(currentDeck);
             }
+            
+            /**
+             * (Ns) 山札下N枚墓地送りCXダメージ処理:
+             * 山札の下からn枚を控え室に送り、その中のCX枚数を返す。
+             * @param {Card[]} currentDeck 
+             * @param {number} amountN - 控え室に送る枚数
+             * @returns {number} Xダメージ (CXの枚数)
+             */
+            _processBottomScrapeEffect(currentDeck, amountN) {
+                if (currentDeck.length === 0 || amountN <= 0) {
+                    return 0; // 0ダメージ
+                }
+
+                // 山札の枚数がN枚未満なら、あるだけ処理する
+                const scrapeCount = Math.min(currentDeck.length, amountN);
+
+                // 山札の下から scrapeCount 枚を取り除く
+                const scrapedCards = currentDeck.splice(currentDeck.length - scrapeCount, scrapeCount);
+                
+                // 控え室に送る
+                this.discardPile.push(...scrapedCards);
+
+                // CXの枚数をカウント
+                const cxCount = scrapedCards.filter(card => card === Card.CX).length;
+                
+                return cxCount; // Xダメージを返す
+            }
 
 
             /**
@@ -374,6 +405,11 @@
                 let passedDamage = 0;
                 let refreshDamage = 0;
                 let isCancelled = false;
+                
+                // ダメージが0点の場合、即座に終了 (キャンセル=false)
+                if (damageAmount <= 0) {
+                     return [0, 0, false];
+                }
 
                 // ダメージ点数（damageAmount）の最大枚数まで1枚ずつめくる
                 for (let i = 0; i < damageAmount; i++) {
@@ -408,7 +444,6 @@
                 }
                 
                 // ダメージが0点以上で、かつ実際に通ったダメージが0だった場合、キャンセルされたと判定
-                // (damageAmount > 0) は、空山札などで実質ダメージが0になるケースを除外するため。
                 const finalCancellationStatus = (damageAmount > 0 && passedDamage === 0);
 
                 return [passedDamage, refreshDamage, finalCancellationStatus];
@@ -449,46 +484,58 @@
                     let currentDeck = deck; 
                     for (const action of actions) {
                         
-                        // 2a. 山札にカードを加えてシャッフルするアクション (Nb)
+                        let currentActionAmount = action.amount; // このアクションで与えるダメージ量
+
+                        // 2a. (Nb) 山札にカードを加えてシャッフル
                         if (action.hasBuryShuffle) {
-                            this._processBuryShuffleEffect(currentDeck, action.amount);
-                            // Nbの場合、lastDamageCancelled の状態は維持される
-                            continue; // ダメージ処理は行わない
+                            this._processBuryShuffleEffect(currentDeck, currentActionAmount);
+                            // LDCは維持
+                            continue; 
                         }
                         
-                        // 2b. 条件付きダメージアクションのチェック (Nc)
-                        if (action.hasConditionalCancel) {
-                            // 直前のダメージがキャンセルされていない場合、このアクションはスキップ
-                            if (!lastDamageCancelled) {
-                                // 実行されなかった場合、LDCは変更しない（falseのまま）
-                                continue;
+                        // 2b. (Ns) 山札下からN枚控え室に送り、CX枚数ダメージ
+                        if (action.hasBottomScrape) {
+                            // Ns は他の効果(m, u, c)と併用されない前提
+                            let xDamage = 0;
+                            if (currentDeck.length > 0) {
+                                // Nsの効果で action.amount (n枚) を処理し、Xダメージを得る
+                                xDamage = this._processBottomScrapeEffect(currentDeck, currentActionAmount);
                             }
-                            // キャンセルされていた場合、通常のダメージとして処理を続行
-                            // このアクションの結果が次の LDC を上書きします (後続の処理で実行)。
+                            
+                            // 実行するダメージ量をXダメージに差し替える
+                            currentActionAmount = xDamage; 
+                            
+                            // Nsの場合、Xダメージが0点ならダメージ処理(_processDamage)は実行されるが、
+                            // _processDamage側で0点ダメージは即座に終了 (キャンセル=false) となり、
+                            // passedDamage=0, refreshAdded=0, isCurrentActionCancelled=false となる。
+                        }
+
+                        // 2c. (Nc) 条件付きダメージ
+                        if (action.hasConditionalCancel) {
+                            if (!lastDamageCancelled) {
+                                continue; // スキップ
+                            }
+                            // 条件を満たしたので、currentActionAmount (NcのN) を使う
                         }
                         
-                        // 2c. ダメージアクションの場合 (N, Nm, Nu, および条件が満たされたNc)
+                        // 2d. ダメージ処理 (N, Nm, Nu, Ns, Nc)
                         
-                        // ダメージ処理前のリフレッシュチェック（山札が空の場合）
-                        while (currentDeck.length === 0) {
+                        // ダメージ処理前のリフレッシュ
+                        while (currentDeck.length === 0 && currentActionAmount > 0) { // ダメージが0ならリフレッシュ不要
                             const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
                             totalPassedDamage += addedDamage;
                             currentDeck = newDeck;
                             if (currentDeck.length === 0) break; // リフレッシュ後も空なら終了
                         }
                         
-                        // ダメージを実行する前に、特殊能力 (u, m) を適用
+                        // 特殊能力 (u, m) を適用 (Nsの場合は適用されない想定)
                         if (currentDeck.length > 0) { 
-                             // UnCXトップ追加能力適用チェック
                             if (action.hasUnCXTop) {
                                 this._processUnCXTopEffect(currentDeck);
                             }
-
-                            // モカ能力適用チェック
                             if (action.hasMoka) {
                                 this._processMokaEffect(currentDeck);
-
-                                // モカ能力で山札が空になった場合、ダメージ処理に入る前に再度リフレッシュ
+                                // モカ後のリフレッシュチェック
                                 while (currentDeck.length === 0) {
                                     const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
                                     totalPassedDamage += addedDamage;
@@ -498,26 +545,21 @@
                             }
                         }
                         
+                        // ダメージ処理を実行
                         let passedDamage = 0;
                         let refreshAdded = 0;
                         let isCurrentActionCancelled = false;
                         
-                        if (currentDeck.length > 0) {
-                            // ダメージ処理を実行
-                            const results = this._processDamage(currentDeck, action.amount, totalPassedDamage, applyRefreshDamage);
-                            passedDamage = results[0];
-                            refreshAdded = results[1];
-                            isCurrentActionCancelled = results[2];
-                        } else {
-                             // 山札が空の場合はダメージなしとして、キャンセル状態をFalseに設定
-                             isCurrentActionCancelled = false;
-                        }
+                        // currentActionAmount (Nsの場合はXダメージ) を使う
+                        const results = this._processDamage(currentDeck, currentActionAmount, totalPassedDamage, applyRefreshDamage);
+                        passedDamage = results[0];
+                        refreshAdded = results[1];
+                        isCurrentActionCancelled = results[2];
 
                         totalPassedDamage += passedDamage;
                         totalPassedDamage += refreshAdded; 
-
-                        // 3. このアクションがダメージアクションの結果としてキャンセルされたかどうかを記録
-                        // (b以外のアクションは、その結果で LDC を上書きする)
+                        
+                        // LDCを上書き
                         lastDamageCancelled = isCurrentActionCancelled;
                     }
 
@@ -714,9 +756,8 @@
 
             // 表示用のダメージ列文字列を作成
             const damagesString = actions.map(d => {
-                if (d.hasBuryShuffle) {
-                    return `${d.amount}b`;
-                }
+                if (d.hasBuryShuffle) return `${d.amount}b`;
+                if (d.hasBottomScrape) return `${d.amount}s`; // Ns を表示
                 return `${d.amount}${d.hasMoka ? 'm' : ''}${d.hasUnCXTop ? 'u' : ''}${d.hasConditionalCancel ? 'c' : ''}`;
             }).join(', ');
             
@@ -926,6 +967,7 @@
                     const hasUnCXTop = trimmed.toLowerCase().includes('u');
                     const hasBuryShuffle = trimmed.toLowerCase().includes('b');
                     const hasConditionalCancel = trimmed.toLowerCase().includes('c');
+                    const hasBottomScrape = trimmed.toLowerCase().includes('s'); // Ns
                     
                     // 数字部分のみを抽出
                     const amountStr = trimmed.replace(/[^0-9]/g, ''); 
@@ -933,10 +975,10 @@
                     
                     if (isNaN(amount) || amount <= 0) return null;
 
-                    // 'b' (Bury) は非ダメージアクション。それ以外はダメージアクション（条件付き含む）。
+                    // 'b' (Bury) は非ダメージアクション。
                     const isDamage = !hasBuryShuffle; 
 
-                    return { amount, isDamage, hasMoka, hasUnCXTop, hasBuryShuffle, hasConditionalCancel };
+                    return { amount, isDamage, hasMoka, hasUnCXTop, hasBuryShuffle, hasConditionalCancel, hasBottomScrape };
                 }).filter(item => item !== null);
 
                 if (initialDeckSize <= 0 || cxCount < 0 || simulations < 1 || actions.length === 0) {
