@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- タイトルをWSリーサル計算機 Proに変更 -->
+    <title>WSリーサル計算機 Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 画像出力機能のためにhtml2canvasを追加 -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script> 
+    <style>
+        /* カスタムスタイル */
+        .card-shadow {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        /* 結果の棒グラフが結果エリア全体を使うようにする */
+        #resultsOutput {
+            min-height: 250px; /* ある程度の高さを確保 */
+        }
+        /* モーダルのアニメーション用 */
+        .modal-enter {
+            opacity: 0;
+        }
+        .modal-enter-active {
+            opacity: 1;
+            transition: opacity 300ms;
+        }
+        .modal-leave-active {
+            opacity: 0;
+            transition: opacity 300ms;
+        }
+        .modal-content-enter {
+            transform: scale(0.95);
+        }
+        .modal-content-enter-active {
+            transform: scale(1);
+            transition: transform 300ms;
+        }
+        /* フォント */
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 sm:p-8 font-sans">
+
+    <div id="app" class="max-w-6xl mx-auto">
+        <header class="text-center mb-10 p-4 bg-white rounded-xl shadow-lg">
+            <h1 class="text-3xl font-extrabold text-indigo-700">WSリーサル計算機 Pro</h1>
+            <!-- 仮実装の注釈を更新 -->
+            <p class="text-sm text-gray-600 mt-2">（リフレッシュ・山削り対応版）</p>
+        </header>
+
+        <!-- レイアウトをグリッドに変更し、lg:col-spanで左右に分割 -->
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- 設定入力エリア (lg:col-span-1) -->
+            <div class="lg:col-span-1 p-6 bg-white rounded-xl card-shadow h-fit">
+                <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">シミュレーション設定</h2>
+                
+                <div class="space-y-4">
+                    <!-- 山札設定 -->
+                    <fieldset class="border rounded-lg p-3">
+                        <legend class="text-sm font-medium text-gray-700 px-1">山札</legend>
+                        <div class="space-y-3 mt-1">
+                            <div>
+                                <label for="deckSize" class="block text-sm font-medium text-gray-700">初期山札枚数</label>
+                                <input type="number" id="deckSize" value="28" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                            </div>
+                            <div>
+                                <label for="cxCount" class="block text-sm font-medium text-gray-700">山札のCX枚数</label>
+                                <input type="number" id="cxCount" value="8" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- ▼▼▼ 控え室設定 (新規追加) ▼▼▼ -->
+                    <fieldset class="border rounded-lg p-3">
+                        <legend class="text-sm font-medium text-gray-700 px-1">控え室</legend>
+                        <div class="space-y-3 mt-1">
+                            <div>
+                                <label for="discardCxCount" class="block text-sm font-medium text-gray-700">初期 控え室CX枚数</label>
+                                <input type="number" id="discardCxCount" value="0" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                            </div>
+                            <div>
+                                <label for="discardUnCxCount" class="block text-sm font-medium text-gray-700">初期 控え室非CX枚数</label>
+                                <input type="number" id="discardUnCxCount" value="0" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                            </div>
+                        </div>
+                    </fieldset>
+                    <!-- ▲▲▲ 控え室設定 (新規追加) ▲▲▲ -->
+
+
+                    <!-- ダメージ列 (説明ボタンを追加) -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="damages" class="block text-sm font-medium text-gray-700">実行アクション列</label>
+                            <button onclick="showExplanationModal()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 underline">
+                                説明を見る
+                            </button>
+                        </div>
+                        <input type="text" id="damages" value="1,3,3,3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="例: 3k,4,3c,2m,1b">
+                    </div>
+
+                    <!-- リフレッシュダメージON/OFF -->
+                    <div class="flex items-center pt-2">
+                        <input type="checkbox" id="refreshToggle" checked class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                        <label for="refreshToggle" class="ml-2 block text-sm font-medium text-gray-700">リフレッシュポイントを適用</label>
+                    </div>
+
+                    <!-- シミュレーション回数 -->
+                    <div>
+                        <label for="simulations" class="block text-sm font-medium text-gray-700">シミュレーション回数(1000以上を推奨)</label>
+                        <input type="number" id="simulations" value="50000" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                    </div>
+                    
+                    <!-- 画像出力時の最大表示点数 -->
+                    <div>
+                        <label for="imageMaxDamage" class="block text-sm font-medium text-gray-700">画像出力時の最大表示点数</label>
+                        <input type="number" id="imageMaxDamage" value="10" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="空欄で自動">
+                    </div>
+                </div>
+
+                <button id="runButton" onclick="handleSimulation()" class="mt-6 w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
+                    シミュレーション実行
+                </button>
+            </div>
+
+            <!-- 結果表示エリア (lg:col-span-2) -->
+            <div class="lg:col-span-2 p-6 bg-white rounded-xl card-shadow">
+                <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2 flex justify-between items-center">
+                    結果
+                    <button id="imageOutputButton" onclick="generateImage()" class="text-sm py-1 px-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-150 ease-in-out hidden">
+                        画像出力
+                    </button>
+                </h2>
+                <div id="statusMessage" class="mb-4 text-center text-indigo-600 font-semibold hidden">
+                    計算中です...
+                </div>
+                
+                <div id="lethalExpectation" class="mb-5 hidden">
+                    <p class="text-sm text-gray-600">リーサル期待値 (通るダメージの平均)</p>
+                    <p id="expectationValue" class="text-4xl font-extrabold text-indigo-700"></p>
+                </div>
+
+                <!-- 結果グラフ表示領域 -->
+                <div id="resultsOutput" class="space-y-3">
+                    <p class="text-gray-500">実行ボタンを押してシミュレーションを開始してください。</p>
+                </div>
+
+                <div id="summary" class="mt-6 pt-4 border-t border-gray-200">
+                    <p id="summaryText" class="text-sm text-gray-600"></p>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="mt-8 text-center text-sm text-gray-500 p-4">
+            <p>ヴァイスは確率ではない – PineAme@tcepseredutitta</p>
+        </footer>
+
+        <!-- ダメージ列説明モーダル -->
+        <div id="explanationModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden transition-opacity duration-300 items-center justify-center p-4" onclick="if (event.target === this) closeExplanationModal()">
+            <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 transform transition-all duration-300 scale-95 opacity-0" id="modalContent">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-xl font-bold text-indigo-700">アクション列 凡例</h3>
+                    <button onclick="closeExplanationModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="text-gray-700 space-y-3">
+                    <p class="font-semibold text-gray-800">入力形式: カンマ区切りでアクションを記述 (例: 3k,4,3c,2m,1b)</p>
+                    <p class="text-sm">ダメージを伴わないアクション (k, b) は、ダメージ処理より先に実行されます。</p>
+                    <ul class="list-disc list-inside space-y-2 pl-4">
+                        <li><strong class="font-mono text-indigo-600">N</strong>: Nダメージ (N点ダメージを実行)</li>
+                        <li><strong class="font-mono text-indigo-600">Nk</strong>: 光景 (N枚の非CXを控え室に追加し、山札の上からN枚をゲームから除外する)</li>
+                        <li><strong class="font-mono text-indigo-600">Nb</strong>: N枚逆圧縮 (N枚のCXでないカードを山札に加えてシャッフル)</li>
+                        <li><strong class="font-mono text-indigo-600">Nu</strong>: 1枚トップ盛り + Nダメージ (CXでないカードをトップに追加後、Nダメージ)</li>
+                        <li><strong class="font-mono text-indigo-600">Nm</strong>: モカ + Nダメージ (トップ2枚操作後、Nダメージ)</li>
+                        <li><strong class="font-mono text-indigo-600">Nc</strong>: 直前がキャンセル時 Nダメージ (直前のダメージがキャンセルされていた場合のみNダメージを実行)</li>
+                        <li><strong class="font-mono text-indigo-600">Ns</strong>: 山札下N枚墓地送りCXダメージ (山札下N枚を控え室に送り、その中のCX枚数ダメージ)</li>
+                        <!-- ▼▼▼ 新規追加アクション ▼▼▼ -->
+                        <li><strong class="font-mono text-red-600">Nsp</strong>: 真琴スパナ (Ns, 3を実施。どちらかキャンセル時、Ns, 3を再度実施)</li>
+                        <!-- ▲▲▲ 新規追加アクション ▲▲▲ -->
+                    </ul>
+                </div>
+                <button onclick="closeExplanationModal()" class="mt-6 w-full py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition">閉じる</button>
+            </div>
+        </div>
+        
+        <!-- 画像プレビューモーダル -->
+        <div id="imagePreviewModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden transition-opacity duration-300 items-center justify-center p-4" onclick="if (event.target === this) closeImagePreviewModal()">
+            <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 transform transition-all duration-300 scale-95 opacity-0" id="imagePreviewContent" style="max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="flex justify-between items-center border-b pb-3 mb-4 flex-shrink-0">
+                    <h3 class="text-xl font-bold text-indigo-700">画像確認</h3>
+                    <button onclick="closeImagePreviewModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="flex-grow overflow-y-auto mb-4 border rounded-lg p-2 bg-gray-50">
+                    <img id="previewImage" src="" alt="シミュレーション結果画像" class="w-full h-auto object-contain">
+                </div>
+                <div class="flex justify-end gap-3 flex-shrink-0">
+                    <button onclick="closeImagePreviewModal()" class="py-2 px-4 bg-gray-300 text-gray-800 rounded-lg shadow hover:bg-gray-400 transition">閉じる</button>
+                    <button id="downloadButton" class="py-2 px-4 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition">画像をダウンロード</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 画像出力用の一時コンテナ (非表示) -->
+        <div id="imageSourceContainer" class="absolute top-0 left-0" style="z-index: -10; opacity: 0; pointer-events: none; transform: translateX(-1000px);">
+            <div id="imageSource" style="width: 500px; font-family: 'Inter', sans-serif;">
+                <!-- Content will be injected here for image generation -->
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // TypeScriptの型ヒントを模倣
+        /** @typedef {'CX' | 'UnCX'} Card */
+        /** @typedef {Object.<number, number>} DamageCounts */
+        /** @typedef {Object.<number, number>} CumulativeProbabilities */
+        /** @typedef {{
+             amount: number, 
+             isDamage: boolean, 
+             hasMoka: boolean, 
+             hasUnCXTop: boolean,
+             hasBuryShuffle: boolean,
+             hasConditionalCancel: boolean,
+             hasBottomScrape: boolean,
+             hasKoukei: boolean,
+             hasMakotoSpanner: boolean // ▼▼▼ 新規追加: 真琴スパナ ▼▼▼
+           }} DamageItem 
+        */
+
+        const Card = {
+            CX: 'CX',
+            UnCX: 'UnCX'
+        };
+        
+        let lastProbabilities = null;
+        let lastSettings = null;
+        let lastExpectation = 0;
+
+        // ====================================================================
+        // 🛠️ 設定保存・読み込み関数
+        // ====================================================================
+
+        function saveSettings() {
+            localStorage.setItem('ws_deckSize', document.getElementById('deckSize').value);
+            localStorage.setItem('ws_cxCount', document.getElementById('cxCount').value);
+            // ▼▼▼ 控え室の情報を保存 ▼▼▼
+            localStorage.setItem('ws_discardCxCount', document.getElementById('discardCxCount').value);
+            localStorage.setItem('ws_discardUnCxCount', document.getElementById('discardUnCxCount').value);
+            // ▲▲▲
+            localStorage.setItem('ws_damages', document.getElementById('damages').value);
+            localStorage.setItem('ws_simulations', document.getElementById('simulations').value);
+            localStorage.setItem('ws_refreshToggle', document.getElementById('refreshToggle').checked);
+            localStorage.setItem('ws_imageMaxDamage', document.getElementById('imageMaxDamage').value); 
+        }
+
+        function loadSettings() {
+            const deckSizeInput = document.getElementById('deckSize');
+            const cxCountInput = document.getElementById('cxCount');
+            // ▼▼▼ 控え室の情報を読み込み ▼▼▼
+            const discardCxCountInput = document.getElementById('discardCxCount');
+            const discardUnCxCountInput = document.getElementById('discardUnCxCount');
+            // ▲▲▲
+            const damagesInput = document.getElementById('damages');
+            const simulationsInput = document.getElementById('simulations');
+            const refreshToggleInput = document.getElementById('refreshToggle');
+            const imageMaxDamageInput = document.getElementById('imageMaxDamage'); 
+
+            deckSizeInput.value = localStorage.getItem('ws_deckSize') || deckSizeInput.value;
+            cxCountInput.value = localStorage.getItem('ws_cxCount') || cxCountInput.value;
+            // ▼▼▼ 控え室の情報を読み込み ▼▼▼
+            discardCxCountInput.value = localStorage.getItem('ws_discardCxCount') || discardCxCountInput.value;
+            discardUnCxCountInput.value = localStorage.getItem('ws_discardUnCxCount') || discardUnCxCountInput.value;
+            // ▲▲▲
+            damagesInput.value = localStorage.getItem('ws_damages') || "1,3,3,3";
+            simulationsInput.value = localStorage.getItem('ws_simulations') || simulationsInput.value;
+            imageMaxDamageInput.value = localStorage.getItem('ws_imageMaxDamage') || imageMaxDamageInput.value; 
+            
+            const refreshToggleValue = localStorage.getItem('ws_refreshToggle');
+            if (refreshToggleValue !== null) {
+                refreshToggleInput.checked = refreshToggleValue === 'true';
+            }
+        }
+
+        // ====================================================================
+        // ヴァイスシュヴァルツ ダメージシミュレーター クラス 
+        // ====================================================================
+
+        class WeissDamageSimulator {
+            constructor() {
+                this.rng = Math; 
+                /** @type {Card[]} */
+                this.discardPile = [];
+            }
+
+            _shuffle(deck) {
+                for (let i = deck.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [deck[i], deck[j]] = [deck[j], deck[i]];
+                }
+            }
+
+            _refresh(deck, totalPassedDamage, applyRefreshDamage) {
+                const addedDamage = applyRefreshDamage ? 1 : 0;
+                deck.push(...this.discardPile);
+                this.discardPile = [];
+                this._shuffle(deck);
+                return [addedDamage, deck];
+            }
+            
+            /**
+             * モカ能力処理: 山札上2枚まで見てCXを控え室に置き、残りを山札トップに戻す。
+             */
+            _processMokaEffect(currentDeck, totalPassedDamage, applyRefreshDamage) {
+                let refreshDamage = 0;
+                let newDeck = currentDeck;
+
+                if (newDeck.length === 0) return [0, newDeck];
+
+                /** @type {Card[]} */
+                const revealedCards = [];
+                // 1. 山札の上から2枚まで見る（山札から取り除く）
+                for (let i = 0; i < 2; i++) {
+                    if (newDeck.length === 0) {
+                        // モカの途中でリフレッシュ
+                        const [addedDamage, refreshedDeck] = this._refresh(newDeck, totalPassedDamage + refreshDamage, applyRefreshDamage);
+                        refreshDamage += addedDamage;
+                        totalPassedDamage += addedDamage; // 累積ダメージも更新
+                        newDeck = refreshedDeck;
+                        
+                        if (newDeck.length === 0) break; // リフレッシュ後も空なら終了
+                    }
+                    // shift()は配列から要素を削除して返す
+                    const drawnCard = newDeck.shift();
+                    if (drawnCard) {
+                        revealedCards.push(drawnCard);
+                    }
+                }
+                
+                /** @type {Card[]} */
+                const cxCards = [];
+                /** @type {Card[]} */
+                const otherCards = [];
+
+                // 2. CXとその他のカードを分類
+                for (const card of revealedCards) {
+                    if (card === Card.CX && cxCards.length < 2) {
+                        cxCards.push(card); 
+                    } else {
+                        otherCards.push(card); 
+                    }
+                }
+
+                // 3. CXを控え室に置く
+                this.discardPile.push(...cxCards);
+
+                // 4. 残りのカードを山札の上に好きな順番で置く
+                this._shuffle(otherCards); 
+                newDeck.unshift(...otherCards);
+
+                return [refreshDamage, newDeck];
+            }
+
+            _processUnCXTopEffect(currentDeck) {
+                currentDeck.unshift(Card.UnCX);
+            }
+
+            _processBuryShuffleEffect(currentDeck, count) {
+                if (count <= 0) return;
+                for (let i = 0; i < count; i++) {
+                    currentDeck.push(Card.UnCX);
+                }
+                this._shuffle(currentDeck);
+            }
+            
+            /**
+             * (Ns) 山札下N枚墓地送りCXダメージ処理
+             * @returns {number} - 発生したCXダメージ
+             */
+            _processBottomScrapeEffect(currentDeck, amountN) {
+                let cxCount = 0;
+                for (let i = 0; i < amountN && currentDeck.length > 0; i++) {
+                    const card = currentDeck.pop();
+                    if (card === Card.CX) {
+                        cxCount++;
+                    }
+                    if (card) {
+                        this.discardPile.push(card);
+                    }
+                }
+                return cxCount;
+            }
+
+            /**
+             * (Nk) 光景処理
+             */
+            _processKoukeiEffect(currentDeck, amountN, totalPassedDamage, applyRefreshDamage) {
+                let refreshDamage = 0;
+                let newDeck = currentDeck;
+
+                // 効果1: N枚の非CXカードを控え室に追加する
+                for (let i = 0; i < amountN; i++) {
+                    this.discardPile.push(Card.UnCX);
+                }
+
+                // 効果2: 山札の上からN枚をゲームから除外する（除外）
+                for (let i = 0; i < amountN; i++) {
+                    // 山札が空になったらリフレッシュ
+                    if (newDeck.length === 0) {
+                        const [addedDamage, refreshedDeck] = this._refresh(newDeck, totalPassedDamage + refreshDamage, applyRefreshDamage);
+                        refreshDamage += addedDamage;
+                        totalPassedDamage += addedDamage; // 累積ダメージも更新
+                        newDeck = refreshedDeck;
+
+                        if (newDeck.length === 0) {
+                            break; // リフレッシュ後も空なら終了
+                        }
+                    }
+                    
+                    // 山札の先頭から1枚めくり、控え室には置かずに破棄（除外）する
+                    newDeck.shift(); 
+                }
+                
+                return [refreshDamage, newDeck]; // [追加ダメージ, 更新された山札]
+            }
+
+
+            /**
+             * 標準ダメージ処理 (リフレッシュ処理も内包)
+             * @param {Card[]} currentDeck 
+             * @param {number} damageAmount - 実行するダメージ点数
+             * @param {number} totalPassedDamage - 現在の累積通過ダメージ
+             * @param {boolean} applyRefreshDamage - リフレッシュダメージの適用フラグ
+             * @returns {[number, number, boolean]} - [通過ダメージ, 追加リフレッシュダメージ, キャンセルされたか]
+             */
+            _processDamage(currentDeck, damageAmount, totalPassedDamage, applyRefreshDamage) {
+                let passedDamage = 0;
+                let refreshDamage = 0;
+                let isCancelled = false;
+                
+                if (damageAmount <= 0) {
+                     return [0, 0, false];
+                }
+
+                for (let i = 0; i < damageAmount; i++) {
+                    // ダメージ処理中のリフレッシュチェック
+                    if (currentDeck.length === 0) {
+                        const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
+                        refreshDamage += addedDamage;
+                        totalPassedDamage += addedDamage;
+                        currentDeck = newDeck;
+                        if (currentDeck.length === 0) {
+                            break;
+                        }
+                    }
+
+                    const drawnCard = currentDeck.shift(); 
+
+                    if (drawnCard === Card.CX) {
+                        isCancelled = true;
+                        this.discardPile.push(drawnCard);
+                        passedDamage = 0;
+                        break; 
+                    }
+
+                    if (drawnCard) {
+                        passedDamage++;
+                        this.discardPile.push(drawnCard);
+                    }
+                }
+                
+                // ダメージが1点以上でキャンセルされたか (例: 3点キャンセルなら true, 0点ダメージなら false)
+                const finalCancellationStatus = (damageAmount > 0 && passedDamage === 0);
+
+                return [passedDamage, refreshDamage, finalCancellationStatus];
+            }
+
+            /**
+             * シミュレーションを実行し、ダメージ点数ごとの累積確率を返す。
+             * @param {number} initialDeckSize 
+             * @param {number} cxCount 
+             * @param {number} initialDiscardCx 
+             * @param {number} initialDiscardUnCx 
+             * @param {DamageItem[]} actions 
+             * @param {number} simulations 
+             * @param {boolean} applyRefreshDamage 
+             * @returns {CumulativeProbabilities}
+             */
+            runSimulation(initialDeckSize, cxCount, initialDiscardCx, initialDiscardUnCx, actions, simulations, applyRefreshDamage) {
+                /** @type {DamageCounts} */
+                const damageCounts = {};
+                const unCxCount = initialDeckSize - cxCount;
+                
+                const maxPossibleDamage = actions
+                    .filter(a => a.isDamage || a.hasMakotoSpanner) // Spannerも考慮
+                    .reduce((sum, d) => {
+                        if (d.hasMakotoSpanner) return sum + d.amount * 2 + 3 * 2; // 最低2回発動として概算
+                        return sum + d.amount;
+                    }, 0) + (applyRefreshDamage ? 10 : 0); 
+
+                for (let sim = 0; sim < simulations; sim++) {
+                    // 1. 控え室の初期化 
+                    this.discardPile = Array(initialDiscardCx).fill(Card.CX).concat(Array(initialDiscardUnCx).fill(Card.UnCX));
+                    
+                    // 2. 初期山札の作成とシャッフル
+                    /** @type {Card[]} */
+                    let deck = Array(cxCount).fill(Card.CX).concat(Array(unCxCount).fill(Card.UnCX));
+                    this._shuffle(deck);
+
+                    // 3. アクション処理の実行
+                    let totalPassedDamage = 0;
+                    let lastDamageCancelled = false; // 直前のダメージアクションがキャンセルされたか
+                    
+                    let currentDeck = deck; 
+
+                    for (const action of actions) {
+                        
+                        let currentActionAmount = action.amount;
+                        let damageCancelled = false; // 現在のアクションでキャンセルが発生したか
+                        
+                        // 3a. (Nb) 山札にカードを加えてシャッフル
+                        if (action.hasBuryShuffle) {
+                            this._processBuryShuffleEffect(currentDeck, currentActionAmount);
+                            continue; 
+                        }
+                        
+                        // 3b. (Nk) 光景
+                        if (action.hasKoukei) {
+                            const [addedDamage, newDeck] = this._processKoukeiEffect(currentDeck, currentActionAmount, totalPassedDamage, applyRefreshDamage);
+                            totalPassedDamage += addedDamage;
+                            currentDeck = newDeck;
+                            continue; 
+                        }
+                        
+                        // 3c. (Nsp) 真琴スパナ
+                        if (action.hasMakotoSpanner) {
+                            let repeat = true;
+                            let playCount = 0;
+                            while(repeat && playCount < 2) {
+                                playCount = playCount + 1;
+                                repeat = false; // 基本は1回で終了
+                                let currentRepeatCancelled = false;
+                                
+                                // NspのNsパート: 山札下N枚墓地送りCXダメージ
+                                let xDamage = 0;
+                                // Nsの前に山札が0枚ならリフレッシュ
+                                if (currentDeck.length === 0) {
+                                    const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
+                                    totalPassedDamage += addedDamage;
+                                    currentDeck = newDeck;
+                                }
+                                
+                                if (currentDeck.length > 0) {
+                                    xDamage = this._processBottomScrapeEffect(currentDeck, currentActionAmount);
+                                }
+                                
+                                // Nsによるダメージ処理 (山札を消費しないCXダメージ)
+                                if (xDamage > 0) {
+                                    const [passedDmg, refreshAdd, isCancelled] = this._processDamage(currentDeck, xDamage, totalPassedDamage, applyRefreshDamage);
+                                    totalPassedDamage += passedDmg;
+                                    totalPassedDamage += refreshAdd; 
+                                    if (isCancelled) {
+                                        currentRepeatCancelled = true;
+                                    }
+                                }
+
+                                // Nspの3ダメージパート
+                                const regularDamage = 3; 
+                                const [passedDmg, refreshAdd, isCancelled] = this._processDamage(currentDeck, regularDamage, totalPassedDamage, applyRefreshDamage);
+                                
+                                totalPassedDamage += passedDmg;
+                                totalPassedDamage += refreshAdd; 
+                                
+                                if (isCancelled) {
+                                    currentRepeatCancelled = true;
+                                }
+                                
+                                // 1. Nsまたは3がキャンセルされた場合、再度Ns, 3を実行
+                                if (currentRepeatCancelled) {
+                                    repeat = true;
+                                }
+                            }
+                            // Nspは複数のダメージアクションを含むため、lastDamageCancelledの更新は個々の処理ではなく、ループ内で完結させる。
+                            lastDamageCancelled = false; // Nspの結果は次のNcに影響を与えないと仮定する
+                            continue;
+                        }
+
+                        // 3d. (Ns) 山札下N枚墓地送りCXダメージ (Nspでなければこちら)
+                        if (action.hasBottomScrape) {
+                            let xDamage = 0;
+                            // Nsの前に山札が0枚ならリフレッシュ
+                            if (currentDeck.length === 0) {
+                                const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
+                                totalPassedDamage += addedDamage;
+                                currentDeck = newDeck;
+                            }
+                            
+                            if (currentDeck.length > 0) {
+                                xDamage = this._processBottomScrapeEffect(currentDeck, currentActionAmount);
+                            }
+                            currentActionAmount = xDamage; 
+                            // Nsは山札を削るダメージではないため、Ncとの連動を考慮しない。
+                        }
+
+                        // 3e. (Nc) 条件付きダメージ
+                        if (action.hasConditionalCancel) {
+                            if (!lastDamageCancelled) {
+                                lastDamageCancelled = false; // Ncが不発だった場合、次のアクションに影響しない
+                                continue;
+                            }
+                            // Ncが発動した場合、通常ダメージとして扱う
+                        }
+                        
+                        // 3f. ダメージ処理 (N, Nm, Nu, Ns, Nc)
+                        
+                        // 特殊能力 (u, m) を適用
+                        if (currentDeck.length > 0) { 
+                            if (action.hasUnCXTop) {
+                                this._processUnCXTopEffect(currentDeck);
+                            }
+                        }
+                        
+                        if (action.hasMoka) {
+                            const [addedDamage, newDeck] = this._processMokaEffect(currentDeck, totalPassedDamage, applyRefreshDamage);
+                            totalPassedDamage += addedDamage;
+                            currentDeck = newDeck;
+                        }
+                        
+                        // ダメージ処理前のリフレッシュ
+                        while (currentDeck.length === 0 && currentActionAmount > 0) {
+                            const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
+                            totalPassedDamage += addedDamage;
+                            currentDeck = newDeck;
+                            if (currentDeck.length === 0) break;
+                        }
+                        
+                        // ダメージ処理を実行
+                        let passedDamage = 0;
+                        let refreshAdded = 0;
+                        
+                        const results = this._processDamage(currentDeck, currentActionAmount, totalPassedDamage, applyRefreshDamage);
+                        passedDamage = results[0];
+                        refreshAdded = results[1];
+                        damageCancelled = results[2]; // キャンセルステータスを取得
+
+                        totalPassedDamage += passedDamage;
+                        totalPassedDamage += refreshAdded; 
+                        
+                        lastDamageCancelled = damageCancelled; // キャンセルステータスを更新
+                    }
+
+                    // 4. 結果の集計
+                    damageCounts[totalPassedDamage] = (damageCounts[totalPassedDamage] || 0) + 1;
+                }
+
+                // 5. 累積確率の計算 (省略、既存ロジックを使用)
+                /** @type {CumulativeProbabilities} */
+                const cumulativeProbabilities = {};
+                
+                let cumulativeCount = 0;
+                const maxDamageObserved = Object.keys(damageCounts).length > 0 
+                    ? Math.max(...Object.keys(damageCounts).map(Number)) 
+                    : 0;
+                
+                const loopEnd = Math.max(maxDamageObserved, maxPossibleDamage, 1);
+
+                for (let d = loopEnd; d >= 1; d--) {
+                    cumulativeCount += damageCounts[d] || 0;
+                    cumulativeProbabilities[d] = cumulativeCount / simulations;
+                }
+
+                return cumulativeProbabilities;
+            }
+        }
+
+        // ====================================================================
+        // 🚀 UI操作と実行関数 (省略、変更なし)
+        // ====================================================================
+
+        const simulator = new WeissDamageSimulator();
+        const resultsOutput = document.getElementById('resultsOutput');
+        const statusMessage = document.getElementById('statusMessage');
+        const runButton = document.getElementById('runButton');
+        const summaryText = document.getElementById('summaryText');
+        const expectationDiv = document.getElementById('lethalExpectation');
+        const expectationValueText = document.getElementById('expectationValue');
+        
+        function showCustomMessage(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            const colorMap = {
+                'red': { bg: '#f8d7da', text: '#721c24' },
+                'info': { bg: '#d4edda', text: '#155724' }
+            };
+            const colors = colorMap[type] || colorMap['info'];
+            alertDiv.style.cssText = `
+                position: fixed; top: 20px; right: 20px; 
+                padding: 10px 20px; border-radius: 8px; 
+                background-color: ${colors.bg}; 
+                color: ${colors.text}; 
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+                z-index: 1000;
+                opacity: 0;
+                transition: opacity 0.5s ease-in-out;
+            `;
+            alertDiv.textContent = message;
+            document.body.appendChild(alertDiv);
+            setTimeout(() => { alertDiv.style.opacity = 1; }, 10);
+            setTimeout(() => {
+                alertDiv.style.opacity = 0;
+                setTimeout(() => document.body.removeChild(alertDiv), 500);
+            }, 4000);
+        }
+
+        // ----------------------------------------------------
+        // 🖼️ モーダル制御 (画像プレビュー, 説明)
+        // ----------------------------------------------------
+        
+        function showImagePreviewModal(base64Image) {
+            const modal = document.getElementById('imagePreviewModal');
+            const content = document.getElementById('imagePreviewContent');
+            const previewImage = document.getElementById('previewImage');
+            const downloadButton = document.getElementById('downloadButton');
+            
+            previewImage.src = base64Image;
+            downloadButton.onclick = () => downloadImage(base64Image); 
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex', 'modal-enter'); 
+            
+            setTimeout(() => {
+                modal.classList.add('modal-enter-active');
+                content.classList.add('modal-content-enter-active');
+                content.classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+
+        function closeImagePreviewModal() {
+            const modal = document.getElementById('imagePreviewModal');
+            const content = document.getElementById('imagePreviewContent');
+            modal.classList.remove('modal-enter-active');
+            modal.classList.add('modal-leave-active');
+            content.classList.remove('modal-content-enter-active');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex', 'modal-leave-active', 'modal-enter');
+            }, 300); 
+        }
+
+        function downloadImage(base64Image) {
+            const link = document.createElement('a');
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            link.download = `WS_Lethal_Calc_Result_${timestamp}.png`;
+            link.href = base64Image;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showCustomMessage("画像をダウンロードしました。", 'info');
+            closeImagePreviewModal();
+        }
+
+        function showExplanationModal() {
+            const modal = document.getElementById('explanationModal');
+            const content = document.getElementById('modalContent');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex', 'modal-enter'); 
+            setTimeout(() => {
+                modal.classList.add('modal-enter-active');
+                content.classList.add('modal-content-enter-active');
+                content.classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+
+        function closeExplanationModal() {
+            const modal = document.getElementById('explanationModal');
+            const content = document.getElementById('modalContent');
+            modal.classList.remove('modal-enter-active');
+            modal.classList.add('modal-leave-active');
+            content.classList.remove('modal-content-enter-active');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex', 'modal-leave-active', 'modal-enter');
+            }, 300);
+        }
+        
+        /**
+         * 結果の確率リストを整形して表示する
+         */
+        function displayResults(probabilities, settings, timeTaken) {
+            const { simulations, initialDeckSize, cxCount, initialDiscardCx, initialDiscardUnCx, actions } = settings;
+            
+            resultsOutput.innerHTML = '';
+            
+            const maxDamageResult = Math.max(...Object.keys(probabilities).map(Number));
+            const results = [];
+            
+            const expectation = Object.values(probabilities).reduce((sum, prob) => sum + prob, 0);
+            expectationDiv.classList.remove('hidden');
+            expectationValueText.textContent = `${expectation.toFixed(2)}点`;
+
+            // 表示用のダメージ列文字列を作成 
+            const damagesString = actions.map(d => {
+                if (d.hasBuryShuffle) return `${d.amount}b`;
+                if (d.hasBottomScrape) return `${d.amount}s`;
+                if (d.hasKoukei) return `${d.amount}k`; 
+                if (d.hasMakotoSpanner) return `${d.amount}sp`; // ▼▼▼ Nspを追加 ▼▼▼
+                return `${d.amount}${d.hasMoka ? 'm' : ''}${d.hasUnCXTop ? 'u' : ''}${d.hasConditionalCancel ? 'c' : ''}`;
+            }).join(', ');
+            
+            // 画像出力用のデータを保存
+            lastProbabilities = probabilities;
+            lastSettings = { ...settings, damagesString }; // 控え室の情報も含む
+            lastExpectation = expectation;
+            document.getElementById('imageOutputButton').classList.remove('hidden');
+            
+            updateImageSource(probabilities, lastSettings, lastExpectation);
+
+            for (let d = 1; d <= maxDamageResult; d++) {
+                const prob = probabilities[d] || 0.0;
+                const percentage = (prob * 100).toFixed(2);
+                const barWidth = Math.max(parseFloat(percentage), 1);
+                
+                let barColor;
+                if (prob >= 0.8) barColor = 'bg-green-600';
+                else if (prob >= 0.5) barColor = 'bg-yellow-500';
+                else if (prob >= 0.3) barColor = 'bg-orange-400';
+                else barColor = 'bg-red-500';
+
+                results.push(`
+                    <div class="flex items-center space-x-2">
+                        <span class="font-mono text-sm text-gray-500 flex-shrink-0 whitespace-nowrap w-16">${d}点以上}</span>
+                        <div class="flex-grow bg-gray-200 rounded-full h-6 relative overflow-hidden">
+                            <div class="${barColor} h-full rounded-full transition-all duration-300 ease-out" style="width: ${barWidth}%;"></div>
+                             <span class="absolute right-0 top-0 bottom-0 pr-2 flex items-center text-xs font-bold text-gray-800">${percentage}%</span>
+                        </div>
+                    </div>
+                `);
+            }
+
+            resultsOutput.innerHTML = results.length > 0 ? results.join('') : '<p class="text-gray-500">リーサル（1点以上のダメージ）が発生しませんでした。</p>';
+
+            // サマリーに控え室情報を追加
+            const initialDiscardTotal = initialDiscardCx + initialDiscardUnCx;
+            summaryText.textContent = `
+                設定：山札${initialDeckSize}枚 (CX${cxCount}枚), 控え室${initialDiscardTotal}枚 (CX${initialDiscardCx}枚), アクション ${damagesString}。
+                ${simulations.toLocaleString()}回のシミュレーションを ${(timeTaken / 1000).toFixed(3)} 秒で実行しました。
+            `;
+        }
+
+
+        /**
+         * 画像出力用の非表示コンテナのコンテンツを更新する
+         */
+        function updateImageSource(probabilities, settings, expectation) {
+            // (▼▼▼ 控え室情報を設定から取得 ▼▼▼)
+            const { initialDeckSize, cxCount, initialDiscardCx, initialDiscardUnCx, damagesString } = settings;
+            const imageSource = document.getElementById('imageSource');
+            const maxDamageResult = Math.max(...Object.keys(probabilities).map(Number));
+            let contentHtml = '';
+            
+            const initialDiscardTotal = initialDiscardCx + initialDiscardUnCx;
+
+            contentHtml += `
+                <div style="font-family: 'Inter', sans-serif; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #1f2937; margin-bottom: 1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
+                        WSリーサル計算機 結果
+                    </h3>
+                    <div style="font-size: 0.9rem; line-height: 1.5; color: #374151; margin-bottom: 1.5rem;">
+                        <!-- (▼▼▼ 画像に控え室情報を追加 ▼▼▼) -->
+                        <p style="margin-bottom: 4px; font-weight: 600; color: #4b5563;">山札：${initialDeckSize}枚 (CX ${cxCount}枚)</p>
+                        <p style="margin-bottom: 4px; font-weight: 600; color: #4b5563;">控え室：${initialDiscardTotal}枚 (CX ${initialDiscardCx}枚)</p>
+                        <!-- (▲▲▲) -->
+                        <p style="font-weight: 600; color: #4b5563; word-break: break-all;">アクション：${damagesString}</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 1.5rem;">
+                        <p style="font-size: 0.8rem; color: #4b5563;">リーサル期待値 (通るダメージの平均)</p>
+                        <p style="font-size: 2.2rem; font-weight: 900; color: #4338ca;">${expectation.toFixed(2)}点</p>
+                    </div>
+
+                    <div style="font-size: 1rem; line-height: 1.5; color: #374151; display: flex; flex-direction: column; gap: 8px;">
+            `;
+            
+            const imageMaxDamage = parseInt(document.getElementById('imageMaxDamage').value) || 0;
+            const loopLimit = imageMaxDamage > 0 ? imageMaxDamage : maxDamageResult;
+
+            let displayedCount = 0;
+            for (let d = 1; d <= loopLimit; d++) {
+                const prob = probabilities[d] || 0.0;
+                const percentage = (prob * 100);
+
+                if (imageMaxDamage === 0 && percentage < 0.01) { // 0.01%未満は非表示 (1%だと厳しすぎたため緩和)
+                    continue;
+                }
+                displayedCount++;
+
+                const percentageString = percentage.toFixed(2);
+                const barWidth = Math.max(parseFloat(percentage), 1);
+                
+                let barColor;
+                if (prob >= 0.8) barColor = '#059669';
+                else if (prob >= 0.5) barColor = '#f59e0b';
+                else if (prob >= 0.3) barColor = '#fb923c';
+                else barColor = '#ef4444';
+
+                contentHtml += `
+                    <div style="display: flex; align-items: center; gap: 8px; ">
+                        <span style="font-size: 14px; color: #6b7280; flex-shrink: 0; white-space: nowrap; width: 64px;">${d}点以上</span> 
+                        <div style="flex-grow: 1; background-color: #e5e7eb; border-radius: 9999px; height: 24px; position: relative; overflow-hidden;"> 
+                            <div style="background-color: ${barColor}; height: 100%; border-radius: 9999px; width: ${barWidth}%;"></div>
+                            <span style="position: absolute; right: 0; top: 0; bottom: 0; padding-right: 8px; display: flex; align-items: center; font-size: 12px; font-weight: 700; color: #1f2937;">${percentageString}%</span> 
+                        </div>
+                    </div>
+                `;
+            }
+            
+            if (displayedCount === 0) {
+                 contentHtml += `<p style="color: #6b7280;">リーサル（1点以上のダメージ）が発生しませんでした。</p>`;
+            }
+
+            contentHtml += `</div></div>`;
+            imageSource.innerHTML = contentHtml;
+        }
+
+        /**
+         * 画像出力ボタンの処理
+         */
+        async function generateImage() {
+            if (!lastProbabilities || !lastSettings) {
+                showCustomMessage("シミュレーションを実行してから画像を出力してください。", 'red');
+                return;
+            }
+            
+            updateImageSource(lastProbabilities, lastSettings, lastExpectation);
+
+            const sourceElement = document.getElementById('imageSource');
+            
+            try {
+                const canvas = await html2canvas(sourceElement, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff'
+                });
+                const base64Image = canvas.toDataURL("image/png");
+                showImagePreviewModal(base64Image);
+                
+            } catch (error) {
+                console.error("画像生成エラー:", error);
+                showCustomMessage("画像の生成中にエラーが発生しました。", "red"); 
+            }
+        }
+
+
+        /**
+         * 入力を取得し、シミュレーションを実行し、結果を表示する
+         */
+        async function handleSimulation() {
+            saveSettings();
+            
+            runButton.disabled = true;
+            statusMessage.textContent = '計算中です... しばらくお待ちください。';
+            statusMessage.classList.remove('hidden'); 
+
+            resultsOutput.innerHTML = '';
+            summaryText.textContent = '';
+            expectationDiv.classList.add('hidden');
+            document.getElementById('imageOutputButton').classList.add('hidden');
+
+            try {
+                // 3. 入力の取得と検証
+                const initialDeckSize = parseInt(document.getElementById('deckSize').value);
+                const cxCount = parseInt(document.getElementById('cxCount').value);
+                // 控え室情報を取得
+                const initialDiscardCx = parseInt(document.getElementById('discardCxCount').value);
+                const initialDiscardUnCx = parseInt(document.getElementById('discardUnCxCount').value);
+                // 
+                const simulations = parseInt(document.getElementById('simulations').value);
+                const applyRefreshDamage = document.getElementById('refreshToggle').checked;
+                
+                const damagesInput = document.getElementById('damages').value;
+                
+                /** @type {DamageItem[]} */
+                const actions = damagesInput.split(',').map(s => {
+                    const trimmed = s.trim();
+                    if (!trimmed) return null; // 空の文字列は無視
+
+                    const hasMoka = trimmed.toLowerCase().includes('m');
+                    const hasUnCXTop = trimmed.toLowerCase().includes('u');
+                    const hasBuryShuffle = trimmed.toLowerCase().includes('b');
+                    const hasConditionalCancel = trimmed.toLowerCase().includes('c');
+                    const hasBottomScrape = trimmed.toLowerCase().includes('s');
+                    const hasKoukei = trimmed.toLowerCase().includes('k'); 
+                    const hasMakotoSpanner = trimmed.toLowerCase().includes('sp'); // ▼▼▼ 新規追加: 真琴スパナ ▼▼▼
+                    
+                    const amountStr = trimmed.replace(/[^0-9]/g, ''); 
+                    const amount = parseInt(amountStr);
+                    
+                    if (isNaN(amount) || amount < 0) return null; // 0点のアクションも許容 (0kなど)
+
+                    // isDamage の判定
+                    const isDamage = !hasBuryShuffle && !hasKoukei && !hasMakotoSpanner; // ▼▼▼ Nspは単独ダメージではない ▼▼▼
+
+                    return { amount, isDamage, hasMoka, hasUnCXTop, hasBuryShuffle, hasConditionalCancel, hasBottomScrape, hasKoukei, hasMakotoSpanner };
+                }).filter(item => item !== null);
+
+                if (initialDeckSize < 0 || cxCount < 0 || initialDiscardCx < 0 || initialDiscardUnCx < 0 || simulations < 1) {
+                    throw new Error("入力値が不正です。枚数や回数は0以上の数、ダメージ列はカンマ区切りで入力してください。");
+                }
+                if (actions.length === 0 && damagesInput !== "") {
+                     throw new Error("アクション列の指定が不正です。凡例を確認してください。 (例: 3k, 4, 3c, 2sp)");
+                }
+                if (cxCount > initialDeckSize) {
+                    throw new Error("山札のCX枚数が初期山札枚数を超えています。");
+                }
+                // デッキの総CX枚数チェック (仮: 8枚)
+                if (cxCount + initialDiscardCx > 8) {
+                    showCustomMessage(`警告: 山札と控え室のCX合計が ${cxCount + initialDiscardCx} 枚です。 (通常は8枚)`, 'red');
+                }
+
+
+                // 4. 計算実行
+                await new Promise(resolve => setTimeout(resolve, 10)); 
+
+                const startTime = performance.now();
+                // 控え室情報を渡す
+                const probabilities = simulator.runSimulation(
+                    initialDeckSize, cxCount, 
+                    initialDiscardCx, initialDiscardUnCx, 
+                    actions, simulations, applyRefreshDamage
+                );
+                const endTime = performance.now();
+                
+                // 5. 結果の表示
+                const settings = { 
+                    simulations, initialDeckSize, cxCount, 
+                    initialDiscardCx, initialDiscardUnCx, 
+                    actions, applyRefreshDamage 
+                };
+                displayResults(probabilities, settings, endTime - startTime);
+
+            } catch (error) {
+                console.error(error);
+                resultsOutput.innerHTML = `<div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">${error.message}</div>`;
+            } finally {
+                // 6. UI状態を元に戻す
+                runButton.disabled = false;
+                statusMessage.classList.add('hidden');
+            }
+        }
+
+
+        // ページロード時: 1. 設定を読み込む
+        window.onload = () => {
+             loadSettings();
+        };
+    </script>
+</body>
+</html>
