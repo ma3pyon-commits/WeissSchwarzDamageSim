@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WSSolo</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- [新規追加] SortableJSライブラリ（ドラッグ＆ドロップ用） -->
+    <!-- SortableJSライブラリ -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', 'Noto Sans JP', sans-serif;
         }
-        /* カスタムラジオボタンのスタイル（狭く表示するための調整） */
+        /* カスタムラジオボタンのスタイル */
         .location-radio-group label {
             cursor: pointer;
             padding: 2px 5px; /* 狭く */
@@ -49,16 +49,19 @@
 
         /* レイアウト修正用CSS */
         .card-info-box {
-            /* カード情報全体を格納するボックス */
             display: flex;
             align-items: center;
             flex-shrink: 0;
-            /* 修正点: 右マージンを最小限に設定 (空欄を詰める) */
             margin-right: 0.5rem; 
-            min-width: 0; /* flexアイテムが縮むのを許可 */
+            min-width: 0;
+            /* ドラッグハンドル */
+            cursor: grab;
         }
+        .card-info-box:active {
+            cursor: grabbing;
+        }
+        
         .card-name-text {
-            /* 画像がない場合に表示するカード名テキストのスタイル */
             font-size: 0.875rem; /* text-sm */
             font-weight: 500; /* font-medium */
             white-space: nowrap;
@@ -76,16 +79,10 @@
             display: none; /* Chrome, Safari, and Opera */
         }
         
-        /* [新規追加] ドラッグ中のスタイル */
+        /* ドラッグ中のスタイル */
         .sortable-ghost {
             opacity: 0.4;
             background: #c0e1ff;
-        }
-        .sortable-chosen {
-            cursor: grabbing;
-        }
-        #deck-list-container .flex {
-            cursor: grab;
         }
     </style>
 </head>
@@ -115,14 +112,12 @@
         <!-- 操作パネル (Sticky Header) -->
         <div class="bg-white p-4 rounded-lg shadow-md sticky top-0 z-10">
             <div class="flex flex-wrap items-center gap-2 sm:gap-4 mb-4">
-                <button id="draw-button" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors">ドロー</button>
-                <button id="sort-hand-button" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors">ソート</button>
+                <button id="draw-button" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors">draw</button>
+                <button id="sort-hand-button" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors">sort</button>
                 <button id="damage-2-button" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors" data-damage="2">2</button>
                 <button id="damage-3-button" class="bg-purple-700 hover:bg-purple-800 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors" data-damage="3">3</button>
-                <button id="level-up-button" class="bg-pink-600 hover:bg-pink-700 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors">レベル</button>
-                <!-- [削除] ボトムバーンボタンを削除 -->
-                <!-- [新規追加] リフレッシュボタン -->
-                <button id="refresh-button" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors">リフ</button>
+                <button id="level-up-button" class="bg-pink-600 hover:bg-pink-700 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors">Lv</button>
+                <button id="refresh-button" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1.5 px-3 text-sm rounded-lg transition-colors">Ref</button>
             </div>
             <!-- カウンター -->
             <div id="counters" class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-8 gap-1 sm:gap-2 text-center">
@@ -160,7 +155,7 @@
                 <h3 id="modal-title" class="text-xl font-bold text-gray-800">カードリスト</h3>
                 <button id="close-card-modal" class="text-gray-500 hover:text-gray-800 text-2xl font-semibold leading-none">&times;</button>
             </div>
-            <div id="modal-content"></div>
+            <div id="modal-content" class="space-y-2"></div>
             <div class="mt-4 text-sm text-gray-600">※このリストの順番は、ゲーム内の配置順とは必ずしも一致しません。</div>
         </div>
     </div>
@@ -193,26 +188,24 @@
         </div>
     </div>
 
-    <!-- [削除] 数値入力モーダルを削除 -->
-
-
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // デフォルトデッキデータを更新
             const deckDataCSV = `カード番号,枚数,カード名,レベル,コスト,種類
-KMS/W133-003,1,のびやかな女の子 カレン,3,2,キャラ
-KMS/W133-004,4,15th Anniversary アリス,3,2,キャラ
-KMS/W133-019,1,離れていても アリス＆アリスマム,3,2,キャラ
-KMS/W133-038,1,大好きな2人 忍＆アリス,2,1,キャラ
-KMS/W133-084,1,中学校からの友達 忍＆綾,2,1,キャラ
-KMS/W133-002,4,15th Anniversary カレン,1,0,キャラ
+KMS/W133-003,2,のびやかな女の子 カレン,3,2,キャラ
+KMS/W133-004b,4,15th Anniversary アリス,3,2,キャラ
+KMS/W133-017,1,渾身の決めポーズ カレン,2,1,キャラ
+KMS/W133-043,1,おしゃれな洋服 忍,2,1,キャラ
+KMS/W133-002b,4,15th Anniversary カレン,1,0,キャラ
 KMS/W133-008,4,ちっちゃくたって アリス,1,0,キャラ
-KMS/W133-001,4,すこやかな女の子 アリス,0,0,キャラ
+KMS/W133-016,4,名探偵 カレン,1,0,キャラ
+KMS/W133-037,3,軽いスキンシップ 忍＆カレン,1,0,キャラ
+KMS/W133-001,3,すこやかな女の子 アリス,0,0,キャラ
 KMS/W133-006,4,2人の金髪少女 アリス＆カレン,0,0,キャラ
-KMS/W133-013,4,夏休みの行先 カレン,0,0,キャラ
+KMS/W133-035,2,夏の装い 忍,0,0,キャラ
 KMS/W133-036,4,頼れるお姉ちゃん 勇,0,0,キャラ
-KMS/W133-079,4,15th Anniversary 綾,0,0,キャラ
-KMS/W133-T10,4,2-A担任 久世橋先生,0,0,キャラ
-KMS/W133-028,2,友達なんだから,1,1,イベント
+KMS/W133-055,4,15th Anniversary 陽子,0,0,キャラ
+KMS/W133-082,2,家庭科教師 久世橋先生,0,0,キャラ
 KMS/W133-029,4,みんなからの人気者,0,0,クライマックス
 KMS/W133-030,4,金髪の天使,0,0,クライマックス`;
 
@@ -252,13 +245,8 @@ KMS/W133-030,4,金髪の天使,0,0,クライマックス`;
             const closeSettingsModalButton = document.getElementById('close-settings-modal');
             const showExileToggle = document.getElementById('show-exile-toggle');
             
-            // [削除] 数値入力モーダル関連要素を削除
-            
-            // [新規追加] リフレッシュボタン
             const refreshButton = document.getElementById('refresh-button');
 
-            // [削除] onPromptSubmitを削除
-            
             // --- Helper Functions ---
             
             function showStatus(message, type = 'info') {
@@ -289,8 +277,6 @@ KMS/W133-030,4,金髪の天使,0,0,クライマックス`;
             
             window.showImageModal = showImageModal;
 
-            // [削除] 数値入力モーダル関連の関数を削除
-            
             function isImageCardSupported(cardCode) {
                 if (!cardCode) return false;
                 return cardCode.startsWith('UMA/') || 
@@ -333,16 +319,13 @@ KMS/W133-030,4,金髪の天使,0,0,クライマックス`;
                 });
             }
 
-            /**
-             * [修正] saveState - DOMの並び順も保存する
-             */
             function saveState() {
                 const cardLocations = [];
-                const cardOrder = []; // [新規] 並び順を保存する配列
+                const cardOrder = []; 
                 
                 Array.from(deckListContainer.children).forEach(row => {
                     const cardId = row.dataset.cardId;
-                    cardOrder.push(cardId); // [新規] IDを順に保存
+                    cardOrder.push(cardId); 
                     
                     const checkedRadio = row.querySelector('input[type="radio"]:checked');
                     if (checkedRadio) {
@@ -357,16 +340,13 @@ KMS/W133-030,4,金髪の天使,0,0,クライマックス`;
                     deckCsv: deckInput.value,
                     cardLocations: cardLocations,
                     showExile: showExileToggle.checked,
-                    cardOrder: cardOrder // [新規] 並び順をstateに追加
+                    cardOrder: cardOrder 
                 };
                 
                 try { localStorage.setItem('wsToolState', JSON.stringify(state)); } 
                 catch (e) { console.error("Could not save state:", e); }
             }
-            
-            /**
-             * [修正] loadState - 保存されたDOMの並び順を復元する
-             */
+
             function loadState() {
                 try {
                     const savedState = localStorage.getItem('wsToolState');
@@ -376,29 +356,26 @@ KMS/W133-030,4,金髪の天使,0,0,クライマックス`;
                     showExileToggle.checked = showExile;
                     deckInput.value = state.deckCsv || deckDataCSV.trim();
                     
-                    loadDeckFromTextarea(false); // カードDOM生成
-                    toggleExileVisibility(showExile); // ラジオボタン表示切替
+                    loadDeckFromTextarea(false); 
+                    toggleExileVisibility(showExile); 
 
-                    // [新規] cardOrderに基づいてDOMを並び替える
                     if (state.cardOrder && state.cardOrder.length > 0) {
                         const cardMap = new Map();
                         Array.from(deckListContainer.children).forEach(row => cardMap.set(row.dataset.cardId, row));
                         
-                        deckListContainer.innerHTML = ''; // 一旦クリア
+                        deckListContainer.innerHTML = ''; 
                         
                         state.cardOrder.forEach(cardId => {
                             const row = cardMap.get(cardId);
                             if (row) {
                                 deckListContainer.appendChild(row);
-                                cardMap.delete(cardId); // 処理済みとしてマップから削除
+                                cardMap.delete(cardId); 
                             }
                         });
                         
-                        // cardOrderに含まれなかったカード（例：デッキリスト更新後）があれば末尾に追加
                         cardMap.forEach(row => deckListContainer.appendChild(row));
                     }
 
-                    // [修正] 場所の復元（並び替えの後に行う）
                     if (state.cardLocations?.length > 0) {
                         const locationMap = new Map(state.cardLocations.map(cl => [cl.id.toString(), cl.location]));
                         Array.from(deckListContainer.children).forEach(row => {
@@ -595,9 +572,6 @@ KMS/W133-030,4,金髪の天使,0,0,クライマックス`;
                 showStatus(`クロックの上から6枚を控え室に送りました。`, 'success');
             }
 
-            // [削除] ボトムバーン処理を削除
-            
-            // [新規追加] リフレッシュ機能
             function refreshDeck() {
                 const waitingCards = Array.from(deckListContainer.children).filter(row =>
                     row.querySelector('input[value="waiting"]:checked')
@@ -615,7 +589,7 @@ KMS/W133-030,4,金髪の天使,0,0,クライマックス`;
                     }
                 });
 
-                updateCounters(); // saveStateはupdateCounters内で呼ばれる
+                updateCounters(); 
                 showStatus(`控室の ${waitingCards.length} 枚のカードを山札に戻しました。`, 'success');
             }
             
@@ -627,7 +601,7 @@ KMS/W133-030,4,金髪の天使,0,0,クライマックス`;
                 const targetCards = Array.from(deckListContainer.children).filter(row => row.querySelector(`input[value="${locationId}"]:checked`));
                 
                 if (targetCards.length === 0) {
-                    modalContent.className = 'space-y-2'; // デフォルト
+                    modalContent.className = 'space-y-2'; 
                     modalContent.innerHTML = '<p class="text-gray-500">この場所には現在カードがありません。</p>';
                 } else {
                     const isImageMode = targetCards.length > 0 && isImageCardSupported(targetCards[0].dataset.cardCode);
@@ -674,7 +648,7 @@ KMS/W133-030,4,金髪の天使,0,0,クライマックス`;
             drawButton.addEventListener('click', drawCard); 
             sortHandButton.addEventListener('click', sortHandToTop); 
             levelUpButton.addEventListener('click', levelUp);
-            refreshButton.addEventListener('click', refreshDeck); // [新規] リフレッシュボタン
+            refreshButton.addEventListener('click', refreshDeck); 
             document.getElementById('damage-2-button').addEventListener('click', (e) => processDamage(parseInt(e.target.dataset.damage)));
             document.getElementById('damage-3-button').addEventListener('click', (e) => processDamage(parseInt(e.target.dataset.damage)));
             deckListContainer.addEventListener('change', (event) => { if (event.target.type === 'radio') updateCounters(); });
@@ -701,7 +675,16 @@ KMS/W133-030,4,金髪の天使,0,0,クライマックス`;
                 saveState(); 
             });
             
-            // [削除] Prompt Modal Listeners を削除
+            // SortableJS Initialization
+            new Sortable(deckListContainer, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                handle: '.card-info-box',
+                onEnd: function (evt) {
+                    saveState();
+                }
+            });
 
             // --- Initialization ---
             if (!loadState()) {
@@ -709,17 +692,6 @@ KMS/W133-030,4,金髪の天使,0,0,クライマックス`;
                 loadDeckFromTextarea(false); 
                 resetDeck(); 
             }
-            
-            // [新規追加] SortableJSの初期化
-            new Sortable(deckListContainer, {
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                chosenClass: 'sortable-chosen',
-                onEnd: function (evt) {
-                    // DOMの順序が変わったので、状態を保存する
-                    saveState();
-                }
-            });
         });
     </script>
 </body>
