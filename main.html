@@ -5,261 +5,904 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WSリーサル計算機 Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 画像出力機能のためにhtml2canvasを追加 -->
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script> 
+    <!-- 画像出力機能 -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <!-- グラフ描画用ライブラリ Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* カスタムスタイル */
         .card-shadow {
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 4px, 6px, 0.05);
         }
-        /* 結果の棒グラフが結果エリア全体を使うようにする */
         #resultsOutput {
-            min-height: 250px; /* ある程度の高さを確保 */
+            min-height: 250px;
         }
-        /* モーダルのアニメーション用 */
-        .modal-enter {
-            opacity: 0;
+        /* モーダルアニメーション */
+        .modal-enter { opacity: 0; }
+        .modal-enter-active { opacity: 1; transition: opacity 300ms; }
+        .modal-leave-active { opacity: 0; transition: opacity 300ms; }
+        .modal-content-enter { transform: scale(0.95); }
+        .modal-content-enter-active { transform: scale(1); transition: transform 300ms; }
+        
+        /* タブのアクティブスタイル */
+        .tab-active {
+            border-bottom: 3px solid #4f46e5;
+            color: #4f46e5;
+            font-weight: 700;
         }
-        .modal-enter-active {
-            opacity: 1;
-            transition: opacity 300ms;
+        .tab-inactive {
+            border-bottom: 3px solid transparent;
+            color: #6b7280;
+            font-weight: 500;
         }
-        .modal-leave-active {
-            opacity: 0;
-            transition: opacity 300ms;
-        }
-        .modal-content-enter {
-            transform: scale(0.95);
-        }
-        .modal-content-enter-active {
-            transform: scale(1);
-            transition: transform 300ms;
+        .tab-inactive:hover {
+            color: #374151;
+            border-bottom: 3px solid #d1d5db;
         }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen p-4 sm:p-8 font-sans">
 
     <div id="app" class="max-w-6xl mx-auto">
-        <header class="text-center mb-10 p-4 bg-white rounded-xl shadow-lg">
-            <!-- タイトルをWSリーサル計算機 Proに変更 -->
+        <header class="text-center mb-6 p-4 bg-white rounded-xl shadow-lg">
             <h1 class="text-3xl font-extrabold text-indigo-700">WSリーサル計算機 Pro</h1>
-            <p class="text-sm text-gray-600 mt-2">（リフレッシュ関連は仮実装）</p>
+            <p class="text-sm text-gray-600 mt-2">ダメージ期待値シミュレーター</p>
         </header>
 
-        <!-- レイアウトをグリッドに変更し、lg:col-spanで左右に分割 -->
-        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- 設定入力エリア (lg:col-span-1) -->
-            <div class="lg:col-span-1 p-6 bg-white rounded-xl card-shadow h-fit">
-                <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">シミュレーション設定</h2>
-                
-                <div class="space-y-6">
-                    <!-- 山札設定グループ -->
-                    <div class="space-y-3">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 pb-1">山札設定</h3>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label for="deckSize" class="block text-sm font-medium text-gray-700">初期山札枚数</label>
-                                <input type="number" id="deckSize" value="28" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+        <!-- タブナビゲーション -->
+        <div class="mb-6 border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8 justify-center" aria-label="Tabs">
+                <button onclick="switchTab('single')" id="tab-btn-single" class="tab-active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
+                    通常モード
+                </button>
+                <button onclick="switchTab('compare')" id="tab-btn-compare" class="tab-inactive whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
+                    比較モード
+                </button>
+            </nav>
+        </div>
+
+        <!-- ======================================================================= -->
+        <!-- 通常モード (Single Mode) -->
+        <!-- ======================================================================= -->
+        <div id="tab-single" class="block">
+            <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- 設定入力エリア -->
+                <div class="lg:col-span-1 p-6 bg-white rounded-xl card-shadow h-fit">
+                    <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">シミュレーション設定</h2>
+                    <div class="space-y-6">
+                        <!-- 山札設定 -->
+                        <div class="space-y-3">
+                            <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 pb-1">山札設定</h3>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label for="deckSize" class="block text-sm font-medium text-gray-700">初期山札枚数</label>
+                                    <input type="number" id="deckSize" value="28" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                                </div>
+                                <div>
+                                    <label for="cxCount" class="block text-sm font-medium text-gray-700">初期山札CX枚数</label>
+                                    <input type="number" id="cxCount" value="8" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 控室設定 -->
+                        <div class="space-y-3">
+                            <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 pb-1">控室設定</h3>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label for="discardSize" class="block text-sm font-medium text-gray-700">初期控室枚数</label>
+                                    <input type="number" id="discardSize" value="0" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                                </div>
+                                <div>
+                                    <label for="discardCxCount" class="block text-sm font-medium text-gray-700">初期控室CX枚数</label>
+                                    <input type="number" id="discardCxCount" value="0" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- ダメージ列 -->
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <label for="damages" class="block text-sm font-medium text-gray-700">与えるダメージ列</label>
+                                <button onclick="showExplanationModal()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 underline">説明を見る</button>
+                            </div>
+                            <input type="text" id="damages" value="1,3,3,3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="例: (1,3m)2c, 3, 3">
+                        </div>
+                        <!-- その他設定 -->
+                        <div class="space-y-3 pt-2 border-t border-gray-200">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="refreshToggle" checked class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                                <label for="refreshToggle" class="ml-2 block text-sm font-medium text-gray-700">リフレッシュポイントを適用</label>
                             </div>
                             <div>
-                                <label for="cxCount" class="block text-sm font-medium text-gray-700">初期山札CX枚数</label>
-                                <input type="number" id="cxCount" value="8" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                                <label for="simulations" class="block text-sm font-medium text-gray-700">シミュレーション回数</label>
+                                <input type="number" id="simulations" value="50000" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                            </div>
+                            <div>
+                                <label for="imageMaxDamage" class="block text-sm font-medium text-gray-700">画像出力時の最大表示点数</label>
+                                <input type="number" id="imageMaxDamage" value="10" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="空欄で自動">
+                            </div>
+                        </div>
+                    </div>
+                    <button id="runButton" onclick="handleSimulation()" class="mt-6 w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
+                        シミュレーション実行
+                    </button>
+                </div>
+
+                <!-- 結果表示エリア -->
+                <div class="lg:col-span-2 flex flex-col gap-8">
+                    <div class="p-6 bg-white rounded-xl card-shadow">
+                        <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2 flex justify-between items-center">
+                            結果
+                            <button id="imageOutputButton" onclick="generateImage()" class="text-sm py-1 px-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-150 ease-in-out hidden">画像出力</button>
+                        </h2>
+                        <div id="statusMessage" class="mb-4 text-center text-indigo-600 font-semibold hidden">計算中です...</div>
+                        <div id="lethalExpectation" class="mb-5 hidden">
+                            <p class="text-sm text-gray-600">リーサル期待値 (通るダメージの平均)</p>
+                            <p id="expectationValue" class="text-4xl font-extrabold text-indigo-700"></p>
+                        </div>
+                        <div id="resultsOutput" class="space-y-3">
+                            <p class="text-gray-500">実行ボタンを押してシミュレーションを開始してください。</p>
+                        </div>
+                        <div id="summary" class="mt-6 pt-4 border-t border-gray-200">
+                            <p id="summaryText" class="text-sm text-gray-600"></p>
+                        </div>
+                    </div>
+                    <div class="p-6 bg-white rounded-xl card-shadow">
+                        <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">実行履歴</h2>
+                        <div id="logOutput" class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                            <p id="emptyLogMessage" class="text-gray-500 text-sm text-center py-4">履歴はありません</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- ======================================================================= -->
+        <!-- 比較モード (Compare Mode) -->
+        <!-- ======================================================================= -->
+        <div id="tab-compare" class="hidden">
+            <main class="grid grid-cols-1 gap-8">
+                <div class="p-6 bg-white rounded-xl card-shadow">
+                    <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">比較条件設定</h2>
+                    <p class="text-sm text-gray-500 mb-4">※最小～最大が異なる項目が横軸（変動要素）になります。変動要素は1つだけにしてください。</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <!-- 山札・控室設定 (範囲指定) -->
+                        <div class="space-y-4">
+                            <!-- 山札 -->
+                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">初期山札枚数</label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="number" id="cmp_deckSize_min" value="20" class="w-full p-2 border rounded shadow-sm" placeholder="最小">
+                                    <span>～</span>
+                                    <input type="number" id="cmp_deckSize_max" value="34" class="w-full p-2 border rounded shadow-sm" placeholder="最大">
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">初期山札CX枚数</label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="number" id="cmp_cxCount_min" value="8" class="w-full p-2 border rounded shadow-sm" placeholder="最小">
+                                    <span>～</span>
+                                    <input type="number" id="cmp_cxCount_max" value="8" class="w-full p-2 border rounded shadow-sm" placeholder="最大">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <!-- 控室 -->
+                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">初期控室枚数</label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="number" id="cmp_discardSize_min" value="0" class="w-full p-2 border rounded shadow-sm" placeholder="最小">
+                                    <span>～</span>
+                                    <input type="number" id="cmp_discardSize_max" value="0" class="w-full p-2 border rounded shadow-sm" placeholder="最大">
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">初期控室CX枚数</label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="number" id="cmp_discardCxCount_min" value="0" class="w-full p-2 border rounded shadow-sm" placeholder="最小">
+                                    <span>～</span>
+                                    <input type="number" id="cmp_discardCxCount_max" value="0" class="w-full p-2 border rounded shadow-sm" placeholder="最大">
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 控室設定グループ -->
-                    <div class="space-y-3">
-                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 pb-1">控室設定</h3>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label for="discardSize" class="block text-sm font-medium text-gray-700">初期控室枚数</label>
-                                <input type="number" id="discardSize" value="0" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
-                            </div>
-                            <div>
-                                <label for="discardCxCount" class="block text-sm font-medium text-gray-700">初期控室CX枚数</label>
-                                <input type="number" id="discardCxCount" value="0" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
-                            </div>
+                    <!-- ダメージ列リスト管理 -->
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-sm font-semibold text-gray-700">ダメージ列リスト</label>
+                            <button onclick="addDamageRow()" class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-200 font-bold">＋ 列を追加</button>
+                        </div>
+                        <div class="grid grid-cols-12 gap-2 mb-2 px-2 text-xs font-medium text-gray-500">
+                            <div class="col-span-3">名前 (任意)</div>
+                            <div class="col-span-8">ダメージ列</div>
+                            <div class="col-span-1 text-center">削除</div>
+                        </div>
+                        <div id="damageRowsContainer" class="space-y-2">
+                            <!-- JSで動的に追加されます -->
                         </div>
                     </div>
 
-                    <!-- ダメージ列 (説明ボタンを追加) -->
-                    <div>
-                        <div class="flex justify-between items-center mb-1">
-                            <label for="damages" class="block text-sm font-medium text-gray-700">与えるダメージ列</label>
-                            <button onclick="showExplanationModal()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 underline">
-                                説明を見る
+                    <div class="space-y-3 pt-4 border-t border-gray-200">
+                        <!-- 比較モード用のリフレッシュ設定 -->
+                        <div class="flex items-center">
+                            <input type="checkbox" id="cmp_refreshToggle" checked class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                            <label for="cmp_refreshToggle" class="ml-2 block text-sm font-medium text-gray-700">リフレッシュポイントを適用 (比較モード用)</label>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row gap-4 items-end">
+                            <div class="flex-grow">
+                                <label for="cmp_simulations" class="block text-sm font-medium text-gray-700">シミュレーション回数 (各条件ごと)</label>
+                                <input type="number" id="cmp_simulations" value="10000" min="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                            </div>
+                            <button onclick="handleCompareSimulation()" id="compareRunButton" class="w-full sm:w-auto py-2 px-6 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition duration-150 ease-in-out">
+                                比較実行
                             </button>
                         </div>
-                        <input type="text" id="damages" value="1,3,3,3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="例: 4,3c,2m,3tm,6ty">
-                    </div>
-
-                    <!-- その他の設定 -->
-                    <div class="space-y-3 pt-2 border-t border-gray-200">
-                        <!-- リフレッシュダメージON/OFF -->
-                        <div class="flex items-center">
-                            <input type="checkbox" id="refreshToggle" checked class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
-                            <label for="refreshToggle" class="ml-2 block text-sm font-medium text-gray-700">リフレッシュポイントを適用</label>
-                        </div>
-
-                        <!-- シミュレーション回数 -->
-                        <div>
-                            <label for="simulations" class="block text-sm font-medium text-gray-700">シミュレーション回数(1000以上を推奨)</label>
-                            <input type="number" id="simulations" value="50000" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
-                        </div>
-                        
-                        <!-- 画像出力時の最大表示点数 -->
-                        <div>
-                            <label for="imageMaxDamage" class="block text-sm font-medium text-gray-700">画像出力時の最大表示点数</label>
-                            <input type="number" id="imageMaxDamage" value="10" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="空欄で自動">
-                        </div>
                     </div>
                 </div>
 
-                <button id="runButton" onclick="handleSimulation()" class="mt-6 w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
-                    シミュレーション実行
-                </button>
-            </div>
-
-            <!-- 右カラムラッパー: 結果と履歴を表示 -->
-            <div class="lg:col-span-2 flex flex-col gap-8">
-                
-                <!-- 結果表示エリア -->
+                <!-- 比較結果表示エリア -->
                 <div class="p-6 bg-white rounded-xl card-shadow">
-                    <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2 flex justify-between items-center">
-                        結果
-                        <!-- 画像出力ボタン -->
-                        <button id="imageOutputButton" onclick="generateImage()" class="text-sm py-1 px-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-150 ease-in-out hidden">
-                            画像出力
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                        <h2 class="text-xl font-bold text-gray-800">比較結果</h2>
+                        <button onclick="downloadChart()" id="downloadChartBtn" class="text-sm py-1 px-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-150 ease-in-out hidden">
+                            グラフを画像保存
                         </button>
-                    </h2>
-                    <!-- 進行状況メッセージ -->
-                    <div id="statusMessage" class="mb-4 text-center text-indigo-600 font-semibold hidden">
-                        計算中です...
                     </div>
                     
-                    <!-- リーサル期待値 -->
-                    <div id="lethalExpectation" class="mb-5 hidden">
-                        <p class="text-sm text-gray-600">リーサル期待値 (通るダメージの平均)</p>
-                        <p id="expectationValue" class="text-4xl font-extrabold text-indigo-700"></p>
+                    <div id="compareStatusMessage" class="hidden mb-4 text-center text-indigo-600 font-semibold">計算中です...</div>
+                    
+                    <!-- グラフ -->
+                    <div class="mb-8 h-80 relative bg-white">
+                        <canvas id="compareChart"></canvas>
                     </div>
 
-                    <!-- 結果グラフ表示領域 -->
-                    <div id="resultsOutput" class="space-y-3">
-                        <p class="text-gray-500">実行ボタンを押してシミュレーションを開始してください。</p>
-                    </div>
-
-                    <div id="summary" class="mt-6 pt-4 border-t border-gray-200">
-                        <p id="summaryText" class="text-sm text-gray-600"></p>
+                    <!-- 表 -->
+                    <div class="overflow-x-auto">
+                        <table id="compareTable" class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">名前 / 条件</th>
+                                    <!-- JSでヘッダー追加 -->
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <!-- JSでデータ追加 -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+            </main>
+        </div>
 
-                <!-- 実行履歴エリア -->
-                <div class="p-6 bg-white rounded-xl card-shadow">
-                    <h2 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">実行履歴</h2>
-                    <div id="logOutput" class="space-y-3 max-h-96 overflow-y-auto pr-1">
-                        <p id="emptyLogMessage" class="text-gray-500 text-sm text-center py-4">履歴はありません</p>
-                    </div>
-                </div>
-
-            </div>
-        </main>
-        
         <!-- 署名フッター -->
         <footer class="mt-8 text-center text-sm text-gray-500 p-4">
-            <p>ヴァイスは確率ではない – PineAme@tcepseredutitta</p>
+            <p>レベルアップは未実装@tcepseredutitta</p>
         </footer>
-        <!---------------------->
 
-        <!-- ダメージ列説明モーダル -->
+        <!-- モーダル類（共通利用） -->
+        <!-- 説明モーダル -->
         <div id="explanationModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden transition-opacity duration-300 items-center justify-center p-4" onclick="if (event.target === this) closeExplanationModal()">
             <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 transform transition-all duration-300 scale-95 opacity-0" id="modalContent">
                 <div class="flex justify-between items-center border-b pb-3 mb-4">
                     <h3 class="text-xl font-bold text-indigo-700">ダメージ列 凡例</h3>
-                    <button onclick="closeExplanationModal()" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
+                    <button onclick="closeExplanationModal()" class="text-gray-400 hover:text-gray-600">×</button>
                 </div>
-                <div class="text-gray-700 space-y-3">
-                    <p class="font-semibold text-gray-800">入力形式: カンマ区切りでアクションを記述 (例: 4,3c,2m,3u,1b)</p>
+                <div class="text-gray-700 space-y-3 overflow-y-auto max-h-[60vh]">
+                    <p class="font-semibold text-gray-800">入力形式: カンマ区切りでアクションを記述</p>
                     <ul class="list-disc list-inside space-y-2 pl-4 text-sm">
-                        <li><strong class="font-mono text-indigo-600">N</strong>: Nダメージ (N点ダメージを実行)</li>
-                        <li><strong class="font-mono text-indigo-600">Nb</strong>: N枚逆圧縮 (N枚のCXでないカードを山札に加えてシャッフル)</li>
-                        <li><strong class="font-mono text-indigo-600">Nu</strong>: 1枚トップ盛り + Nダメージ (CXでないカードをトップに追加後、Nダメージ)</li>
-                        <li><strong class="font-mono text-indigo-600">Nm</strong>: モカ + Nダメージ (トップ2枚操作後、Nダメージ)</li>
-                        <li><strong class="font-mono text-indigo-600">Nt</strong>: 3枚モカ + Nダメージ (トップ3枚操作後、Nダメージ)</li>
-                        <li><strong class="font-mono text-indigo-600">Nc</strong>: 直前がキャンセル時 Nダメージ (直前のダメージがキャンセルされていた場合のみNダメージを実行)</li>
-                        <li><strong class="font-mono text-indigo-600">Ns</strong>: 山札下N枚墓地送りCXダメージ (山札下N枚を控え室に送り、その中のCX枚数ダメージ)</li>
-                        <li><strong class="font-mono text-indigo-600">Ntm</strong>: 【手毬】山札下N枚落下、CXあれば1点バーン (山札下N枚にCXがあれば1点ダメージを1回与える)</li>
-                        <li><strong class="font-mono text-indigo-600">Nty</strong>: 【冬弥】山札下N枚落下、CX枚数分1点バーン (山札下N枚のCX枚数と同じ回数、1点ダメージを与える)</li>
+                        <li><strong class="font-mono text-indigo-600">N</strong>: Nダメージ</li>
+                        <li><strong class="font-mono text-indigo-600">(A,B)Nc</strong>: 括弧内のいずれかがキャンセル時、最後にNダメージ</li>
+                        <li><strong class="font-mono text-indigo-600">Nc</strong>: 直前キャンセル時 Nダメージ</li>
+                        <li><strong class="font-mono text-indigo-600">Nb</strong>: N枚逆圧縮</li>
+                        <li><strong class="font-mono text-indigo-600">Nu</strong>: 1枚トップ盛り + Nダメージ</li>
+                        <li><strong class="font-mono text-indigo-600">Nm</strong>: モカ + Nダメージ</li>
+                        <li><strong class="font-mono text-indigo-600">Nt</strong>: 3枚モカ + Nダメージ</li>
+                        <li><strong class="font-mono text-indigo-600">Ns</strong>: 山札下N枚墓地送りCXダメージ</li>
+                        <li><strong class="font-mono text-indigo-600">Ntm</strong>: 【手毬】山下N枚落下、CXあれば1点</li>
+                        <li><strong class="font-mono text-indigo-600">Nty</strong>: 【冬弥】山下N枚落下、CX枚数分1点</li>
                     </ul>
                 </div>
                 <button onclick="closeExplanationModal()" class="mt-6 w-full py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition">閉じる</button>
             </div>
         </div>
-        
+
         <!-- 画像プレビューモーダル -->
         <div id="imagePreviewModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden transition-opacity duration-300 items-center justify-center p-4" onclick="if (event.target === this) closeImagePreviewModal()">
             <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 transform transition-all duration-300 scale-95 opacity-0" id="imagePreviewContent" style="max-height: 90vh; display: flex; flex-direction: column;">
                 <div class="flex justify-between items-center border-b pb-3 mb-4 flex-shrink-0">
                     <h3 class="text-xl font-bold text-indigo-700">画像確認</h3>
-                    <button onclick="closeImagePreviewModal()" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
+                    <button onclick="closeImagePreviewModal()" class="text-gray-400 hover:text-gray-600">×</button>
                 </div>
-                <!-- 画像表示エリア -->
                 <div class="flex-grow overflow-y-auto mb-4 border rounded-lg p-2 bg-gray-50">
                     <img id="previewImage" src="" alt="シミュレーション結果画像" class="w-full h-auto object-contain">
                 </div>
-                <!-- ボタンエリア -->
                 <div class="flex justify-end gap-3 flex-shrink-0">
                     <button onclick="closeImagePreviewModal()" class="py-2 px-4 bg-gray-300 text-gray-800 rounded-lg shadow hover:bg-gray-400 transition">閉じる</button>
                     <button id="downloadButton" class="py-2 px-4 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition">画像をダウンロード</button>
                 </div>
             </div>
         </div>
-
-        <!-- 画像出力用の一時コンテナ (非表示) -->
+        
+        <!-- 画像生成用隠しコンテナ -->
         <div id="imageSourceContainer" class="absolute top-0 left-0" style="z-index: -10; opacity: 0; pointer-events: none; transform: translateX(-1000px);">
-            <div id="imageSource" style="width: 500px; font-family: 'Inter', sans-serif;">
-                <!-- Content will be injected here for image generation -->
-            </div>
+            <div id="imageSource" style="width: 500px; font-family: 'Inter', sans-serif;"></div>
         </div>
 
     </div>
 
     <script>
-        // TypeScriptの型ヒントを模倣
-        /** @typedef {'CX' | 'UnCX'} Card */
-        /** @typedef {Object.<number, number>} DamageCounts */
-        /** @typedef {Object.<number, number>} CumulativeProbabilities */
-        /** @typedef {{
-             amount: number, 
-             isDamage: boolean, 
-             hasMoka: boolean, 
-             hasTop3Moka: boolean,
-             hasUnCXTop: boolean,
-             hasBuryShuffle: boolean,
-             hasConditionalCancel: boolean,
-             hasBottomScrape: boolean,
-             hasTemari: boolean, // 手毬
-             hasToya: boolean    // 冬弥
-           }} DamageItem 
-        */
+        // ====================================================================
+        // 定義とユーティリティ
+        // ====================================================================
+        const Card = { CX: 'CX', UnCX: 'UnCX' };
 
-        const Card = {
-            CX: 'CX',
-            UnCX: 'UnCX'
-        };
+        // スリープ関数（非同期処理用）
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        // 括弧付き構文のプリプロセス (v3準拠)
+        function preprocessDamages(input) {
+            if (!input) return "";
+            let processed = input.replace(/（/g, '(').replace(/）/g, ')');
+            const regex = /\(([^)]+)\)(\d+)c/g;
+            processed = processed.replace(regex, (match, actionsInside, cancelDamage) => {
+                const items = actionsInside.split(',').map(s => s.trim()).filter(s => s);
+                if (items.length === 0) return match;
+                items[0] = items[0] + '_monitor_start';
+                return items.join(',') + `,${cancelDamage}c_monitor_check`;
+            });
+            return processed;
+        }
+
+        // ダメージ文字列の解析
+        function parseActions(damagesInput) {
+            const expandedDamagesInput = preprocessDamages(damagesInput);
+            return expandedDamagesInput.split(',').map(s => {
+                let trimmed = s.trim();
+                const isMonitorStart = trimmed.includes('_monitor_start');
+                if (isMonitorStart) trimmed = trimmed.replace('_monitor_start', '');
+                const isMonitorCheck = trimmed.includes('_monitor_check');
+                if (isMonitorCheck) trimmed = trimmed.replace('_monitor_check', '');
+
+                const hasMoka = trimmed.toLowerCase().includes('m') && !trimmed.toLowerCase().includes('tm');
+                const hasUnCXTop = trimmed.toLowerCase().includes('u');
+                const hasBuryShuffle = trimmed.toLowerCase().includes('b');
+                const hasConditionalCancel = trimmed.toLowerCase().includes('c');
+                const hasBottomScrape = trimmed.toLowerCase().includes('s');
+                const hasTemari = trimmed.toLowerCase().includes('tm');
+                const hasToya = trimmed.toLowerCase().includes('ty');
+                const hasTop3Moka = trimmed.toLowerCase().includes('t') && !hasTemari && !hasToya;
+
+                const amountStr = trimmed.replace(/[^0-9]/g, '');
+                const amount = parseInt(amountStr);
+                if (isNaN(amount) || amount <= 0) return null;
+
+                const isDamage = !hasBuryShuffle;
+                return { 
+                    amount, isDamage, hasMoka, hasUnCXTop, hasBuryShuffle, hasConditionalCancel, 
+                    hasBottomScrape, hasTop3Moka, hasTemari, hasToya, isMonitorStart, isMonitorCheck 
+                };
+            }).filter(item => item !== null);
+        }
+
+        // ====================================================================
+        // シミュレータ クラス (v3準拠)
+        // ====================================================================
+        class WeissDamageSimulator {
+            constructor() {
+                this.rng = Math;
+                this.discardPile = [];
+            }
+            _shuffle(deck) {
+                for (let i = deck.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [deck[i], deck[j]] = [deck[j], deck[i]];
+                }
+            }
+            _refresh(deck, totalPassedDamage, applyRefreshDamage) {
+                const addedDamage = applyRefreshDamage ? 1 : 0;
+                deck.push(...this.discardPile);
+                this.discardPile = [];
+                this._shuffle(deck);
+                return [addedDamage, deck];
+            }
+            _processMokaEffect(currentDeck, count = 2) {
+                if (currentDeck.length === 0) return;
+                const revealedCards = currentDeck.splice(0, count);
+                const cxCards = [];
+                const otherCards = [];
+                for (const card of revealedCards) {
+                    if (card === Card.CX) cxCards.push(card);
+                    else otherCards.push(card);
+                }
+                this.discardPile.push(...cxCards);
+                this._shuffle(otherCards);
+                currentDeck.unshift(...otherCards);
+            }
+            _processUnCXTopEffect(currentDeck) {
+                currentDeck.unshift(Card.UnCX);
+            }
+            _processBuryShuffleEffect(currentDeck, count) {
+                if (count <= 0) return;
+                for (let i = 0; i < count; i++) currentDeck.push(Card.UnCX);
+                this._shuffle(currentDeck);
+            }
+            _processBottomScrapeEffect(currentDeck, amountN, totalPassedDamage, applyRefreshDamage) {
+                let scrapedCXCount = 0;
+                let refreshDamageTotal = 0;
+                if (amountN > currentDeck.length) {
+                    const currentLength = currentDeck.length;
+                    let remainingNeeded = amountN - currentLength;
+                    const firstScrapedCards = currentDeck.splice(0, currentLength);
+                    this.discardPile.push(...firstScrapedCards);
+                    scrapedCXCount += firstScrapedCards.filter(card => card === Card.CX).length;
+
+                    const [addedDamage, _] = this._refresh(currentDeck, totalPassedDamage + refreshDamageTotal, applyRefreshDamage);
+                    refreshDamageTotal += addedDamage;
+
+                    const secondScrapeCount = Math.min(currentDeck.length, remainingNeeded);
+                    const secondScrapedCards = currentDeck.splice(currentDeck.length - secondScrapeCount, secondScrapeCount);
+                    this.discardPile.push(...secondScrapedCards);
+                    scrapedCXCount += secondScrapedCards.filter(card => card === Card.CX).length;
+                } else {
+                    const scrapedCards = currentDeck.splice(currentDeck.length - amountN, amountN);
+                    this.discardPile.push(...scrapedCards);
+                    scrapedCXCount += scrapedCards.filter(card => card === Card.CX).length;
+                }
+                return [scrapedCXCount, refreshDamageTotal];
+            }
+            _processDamage(currentDeck, damageAmount, totalPassedDamage, applyRefreshDamage) {
+                let passedDamage = 0;
+                let refreshDamage = 0;
+                if (damageAmount <= 0) return [0, 0, false];
+
+                for (let i = 0; i < damageAmount; i++) {
+                    if (currentDeck.length === 0) {
+                        const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
+                        refreshDamage += addedDamage;
+                        totalPassedDamage += addedDamage;
+                        currentDeck = newDeck;
+                        if (currentDeck.length === 0) break;
+                    }
+                    const drawnCard = currentDeck.shift();
+                    if (drawnCard === Card.CX) {
+                        this.discardPile.push(drawnCard);
+                        passedDamage = 0;
+                        break;
+                    }
+                    passedDamage++;
+                    this.discardPile.push(drawnCard);
+                }
+                const finalCancellationStatus = (damageAmount > 0 && passedDamage === 0);
+                return [passedDamage, refreshDamage, finalCancellationStatus];
+            }
+
+            runSimulation(initialDeckSize, cxCount, initialDiscardSize, initialDiscardCxCount, actions, simulations, applyRefreshDamage) {
+                const damageCounts = {};
+                const unCxCount = initialDeckSize - cxCount;
+                const initialDiscardUnCx = initialDiscardSize - initialDiscardCxCount;
+                const maxPossibleDamage = actions.reduce((sum, d) => sum + d.amount, 0) * 2 + 10;
+
+                for (let sim = 0; sim < simulations; sim++) {
+                    this.discardPile = Array(initialDiscardCxCount).fill(Card.CX).concat(Array(initialDiscardUnCx).fill(Card.UnCX));
+                    let deck = Array(cxCount).fill(Card.CX).concat(Array(unCxCount).fill(Card.UnCX));
+                    this._shuffle(deck);
+
+                    let totalPassedDamage = 0;
+                    let lastDamageCancelled = false;
+                    let cancelWasMonitorred = false;
+                    let currentDeck = deck;
+
+                    for (const action of actions) {
+                        if (action.isMonitorStart) cancelWasMonitorred = false;
+                        let currentActionAmount = action.amount;
+
+                        if (action.hasBuryShuffle) {
+                            this._processBuryShuffleEffect(currentDeck, currentActionAmount);
+                            continue;
+                        }
+                        
+                        let bottomScrapeCX = 0;
+                        let bottomScrapeRefreshDamage = 0;
+                        if (action.hasBottomScrape || action.hasTemari || action.hasToya) {
+                            const [cxCount, refDmg] = this._processBottomScrapeEffect(currentDeck, currentActionAmount, totalPassedDamage, applyRefreshDamage);
+                            bottomScrapeCX = cxCount;
+                            bottomScrapeRefreshDamage = refDmg;
+                            totalPassedDamage += bottomScrapeRefreshDamage;
+                        }
+
+                        if (action.hasBottomScrape) currentActionAmount = bottomScrapeCX;
+                        else if (action.hasTemari) currentActionAmount = (bottomScrapeCX > 0) ? 1 : 0;
+                        else if (action.hasToya) {
+                            for(let i=0; i < bottomScrapeCX; i++) {
+                                while (currentDeck.length === 0) { 
+                                    const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
+                                    totalPassedDamage += addedDamage;
+                                    currentDeck = newDeck;
+                                    if (currentDeck.length === 0) break;
+                                }
+                                const results = this._processDamage(currentDeck, 1, totalPassedDamage, applyRefreshDamage);
+                                totalPassedDamage += results[0];
+                                totalPassedDamage += results[1];
+                                lastDamageCancelled = results[2];
+                                if (lastDamageCancelled) cancelWasMonitorred = true;
+                            }
+                            continue;
+                        }
+
+                        if (action.hasConditionalCancel) {
+                            if (action.isMonitorCheck) {
+                                if (!cancelWasMonitorred) continue;
+                            } else {
+                                if (!lastDamageCancelled) continue;
+                            }
+                        }
+
+                        while (currentDeck.length === 0 && currentActionAmount > 0) {
+                            const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
+                            totalPassedDamage += addedDamage;
+                            currentDeck = newDeck;
+                            if (currentDeck.length === 0) break;
+                        }
+
+                        if (currentDeck.length > 0) {
+                            if (action.hasUnCXTop) this._processUnCXTopEffect(currentDeck);
+                            if (action.hasMoka) {
+                                this._processMokaEffect(currentDeck, 2);
+                                while (currentDeck.length === 0) {
+                                    const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
+                                    totalPassedDamage += addedDamage;
+                                    currentDeck = newDeck;
+                                    if (currentDeck.length === 0) break;
+                                }
+                            }
+                            if (action.hasTop3Moka) {
+                                this._processMokaEffect(currentDeck, 3);
+                                while (currentDeck.length === 0) {
+                                    const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
+                                    totalPassedDamage += addedDamage;
+                                    currentDeck = newDeck;
+                                    if (currentDeck.length === 0) break;
+                                }
+                            }
+                        }
+
+                        const results = this._processDamage(currentDeck, currentActionAmount, totalPassedDamage, applyRefreshDamage);
+                        totalPassedDamage += results[0];
+                        totalPassedDamage += results[1];
+                        lastDamageCancelled = results[2];
+                        if (lastDamageCancelled) cancelWasMonitorred = true;
+                    }
+                    damageCounts[totalPassedDamage] = (damageCounts[totalPassedDamage] || 0) + 1;
+                }
+                const cumulativeProbabilities = {};
+                let cumulativeCount = 0;
+                for (let d = maxPossibleDamage; d >= 1; d--) {
+                    cumulativeCount += damageCounts[d] || 0;
+                    if (cumulativeCount > 0) cumulativeProbabilities[d] = cumulativeCount / simulations;
+                }
+                return cumulativeProbabilities;
+            }
+        }
+
+        const simulator = new WeissDamageSimulator();
+        const simulationCache = {}; // キャッシュ保存用
+
+        // ====================================================================
+        // タブ切り替え制御
+        // ====================================================================
+        function switchTab(mode) {
+            const singleTab = document.getElementById('tab-single');
+            const compareTab = document.getElementById('tab-compare');
+            const singleBtn = document.getElementById('tab-btn-single');
+            const compareBtn = document.getElementById('tab-btn-compare');
+
+            if (mode === 'single') {
+                singleTab.classList.remove('hidden');
+                compareTab.classList.add('hidden');
+                singleBtn.className = "tab-active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg";
+                compareBtn.className = "tab-inactive whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg";
+            } else {
+                singleTab.classList.add('hidden');
+                compareTab.classList.remove('hidden');
+                singleBtn.className = "tab-inactive whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg";
+                compareBtn.className = "tab-active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg";
+                // 比較モード初期化
+                if (document.getElementById('damageRowsContainer').children.length === 0) {
+                    addDamageRow("", ""); // 初期表示は空欄
+                }
+            }
+        }
+
+        // ====================================================================
+        // 比較モード用 UIロジック
+        // ====================================================================
         
-        // グローバル変数で最新の結果と設定を保持
+        // ダメージ列の動的追加・削除
+        function addDamageRow(initialValue = "", initialName = "") {
+            const container = document.getElementById('damageRowsContainer');
+            const div = document.createElement('div');
+            div.className = "grid grid-cols-12 gap-2 items-center row-entry";
+            div.innerHTML = `
+                <div class="col-span-3">
+                    <input type="text" class="damage-row-name w-full p-2 border border-gray-300 rounded shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" placeholder="名前" value="${initialName}">
+                </div>
+                <div class="col-span-8">
+                    <input type="text" class="damage-row-input w-full p-2 border border-gray-300 rounded shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="例: 1,3,3" value="${initialValue}">
+                </div>
+                <div class="col-span-1 text-center">
+                    <button onclick="this.closest('.row-entry').remove()" class="text-red-500 hover:text-red-700 font-bold p-2">×</button>
+                </div>
+            `;
+            container.appendChild(div);
+        }
+
+        let compareChartInstance = null;
+
+        async function handleCompareSimulation() {
+            const runBtn = document.getElementById('compareRunButton');
+            const statusMsg = document.getElementById('compareStatusMessage');
+            const downloadBtn = document.getElementById('downloadChartBtn');
+            
+            runBtn.disabled = true;
+            statusMsg.classList.remove('hidden');
+            statusMsg.textContent = "準備中..."; // 初期メッセージ
+            downloadBtn.classList.add('hidden');
+
+            try {
+                // 1. パラメータの読み込みと変動要素の特定
+                const params = {
+                    deckSize: { min: parseInt(document.getElementById('cmp_deckSize_min').value), max: parseInt(document.getElementById('cmp_deckSize_max').value), name: "初期山札枚数" },
+                    cxCount: { min: parseInt(document.getElementById('cmp_cxCount_min').value), max: parseInt(document.getElementById('cmp_cxCount_max').value), name: "初期山札CX枚数" },
+                    discardSize: { min: parseInt(document.getElementById('cmp_discardSize_min').value), max: parseInt(document.getElementById('cmp_discardSize_max').value), name: "初期控室枚数" },
+                    discardCxCount: { min: parseInt(document.getElementById('cmp_discardCxCount_min').value), max: parseInt(document.getElementById('cmp_discardCxCount_max').value), name: "初期控室CX枚数" }
+                };
+
+                // 変動するパラメータを探す（min != max）
+                let variableParamKey = null;
+                for (const key in params) {
+                    if (params[key].min !== params[key].max) {
+                        if (variableParamKey) {
+                            throw new Error("変動させる（最小～最大が異なる）パラメータは1つだけにしてください。");
+                        }
+                        variableParamKey = key;
+                    }
+                }
+                
+                // 変動なしの場合、デフォルトで山札枚数を軸にする（min=maxで1点だけプロット）
+                if (!variableParamKey) variableParamKey = 'deckSize';
+
+                const targetParam = params[variableParamKey];
+                const xLabels = [];
+                // 軸の値を生成
+                if (targetParam.min > targetParam.max) throw new Error(`${targetParam.name}の最小値が最大値より大きいです。`);
+                for (let v = targetParam.min; v <= targetParam.max; v++) {
+                    xLabels.push(v);
+                }
+
+                // 2. ダメージ列の取得
+                const rowElements = Array.from(document.querySelectorAll('.row-entry'));
+                const damageEntries = rowElements.map(row => {
+                    const name = row.querySelector('.damage-row-name').value.trim();
+                    const input = row.querySelector('.damage-row-input').value.trim();
+                    return { name, input };
+                }).filter(entry => entry.input);
+
+                if (damageEntries.length === 0) throw new Error("ダメージ列を少なくとも1つ入力してください。");
+
+                const simulations = parseInt(document.getElementById('cmp_simulations').value);
+                const applyRefreshDamage = document.getElementById('cmp_refreshToggle').checked;
+
+                // 3. シミュレーション実行
+                const resultsMatrix = [];
+                
+                // 進捗表示用のカウント変数
+                let totalSteps = damageEntries.length * xLabels.length;
+                let currentStep = 0;
+
+                // 少し待機してUI更新させる
+                await sleep(10);
+
+                for (let i = 0; i < damageEntries.length; i++) {
+                    const rowResults = [];
+                    const actions = parseActions(damageEntries[i].input);
+                    if (actions.length === 0) {
+                        rowResults.push(...Array(xLabels.length).fill(0));
+                        resultsMatrix.push(rowResults);
+                        // スキップした分もステップカウントを進める
+                        currentStep += xLabels.length;
+                        continue;
+                    }
+
+                    for (let j = 0; j < xLabels.length; j++) {
+                        const xVal = xLabels[j];
+                        currentStep++;
+
+                        // 進捗表示を更新
+                        statusMsg.textContent = `計算中です... (${currentStep}/${totalSteps})`;
+                        
+                        // ★ここが重要: 処理を中断してブラウザに描画の機会を与える
+                        // 毎回だと遅くなる場合は if (currentStep % 5 === 0) などで間引くことも可能ですが、
+                        // 確実に応答なしを防ぐため毎回awaitします（setTimeout(..., 0)と同義）
+                        await sleep(0);
+
+                        // 現在の条件設定
+                        let currentDeckSize = (variableParamKey === 'deckSize') ? xVal : params.deckSize.min;
+                        let currentCxCount = (variableParamKey === 'cxCount') ? xVal : params.cxCount.min;
+                        let currentDiscardSize = (variableParamKey === 'discardSize') ? xVal : params.discardSize.min;
+                        let currentDiscardCxCount = (variableParamKey === 'discardCxCount') ? xVal : params.discardCxCount.min;
+
+                        // バリデーション
+                        if (currentCxCount > currentDeckSize || currentDiscardCxCount > currentDiscardSize) {
+                            rowResults.push(0);
+                            continue;
+                        }
+
+                        // キャッシュ確認ロジック
+                        const cacheKey = JSON.stringify({
+                            deck: currentDeckSize,
+                            cx: currentCxCount,
+                            discard: currentDiscardSize,
+                            discardCx: currentDiscardCxCount,
+                            acts: actions,
+                            sims: simulations,
+                            refresh: applyRefreshDamage
+                        });
+
+                        let probs;
+                        if (simulationCache[cacheKey]) {
+                            probs = simulationCache[cacheKey];
+                        } else {
+                            probs = simulator.runSimulation(currentDeckSize, currentCxCount, currentDiscardSize, currentDiscardCxCount, actions, simulations, applyRefreshDamage);
+                            simulationCache[cacheKey] = probs;
+                        }
+
+                        const expectation = Object.values(probs).reduce((sum, prob) => sum + prob, 0);
+                        rowResults.push(parseFloat(expectation.toFixed(3)));
+                    }
+                    resultsMatrix.push(rowResults);
+                }
+
+                // 4. 結果表示
+                const displayLabels = damageEntries.map(entry => {
+                    return entry.name ? `${entry.name}` : entry.input;
+                });
+
+                renderCompareResults(targetParam.name, xLabels, displayLabels, resultsMatrix);
+                downloadBtn.classList.remove('hidden');
+
+            } catch (error) {
+                alert(error.message);
+            } finally {
+                runBtn.disabled = false;
+                statusMsg.classList.add('hidden');
+            }
+        }
+
+        function renderCompareResults(axisName, xLabels, displayLabels, dataMatrix) {
+            // テーブル描画
+            const tableHeadTr = document.querySelector('#compareTable thead tr');
+            const tableBody = document.querySelector('#compareTable tbody');
+            
+            // ヘッダー生成
+            let thHtml = `<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${axisName}</th>`;
+            xLabels.forEach(label => {
+                thHtml += `<th scope="col" class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">${label}</th>`;
+            });
+            tableHeadTr.innerHTML = thHtml;
+
+            let bodyHtml = '';
+            
+            displayLabels.forEach((label, rowIndex) => {
+                let tr = `<tr class="${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">`;
+                tr += `<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r">${label}</td>`;
+                dataMatrix[rowIndex].forEach(val => {
+                    tr += `<td class="px-2 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${val.toFixed(2)}</td>`;
+                });
+                tr += `</tr>`;
+                bodyHtml += tr;
+            });
+            tableBody.innerHTML = bodyHtml;
+
+
+            // グラフ描画 (Chart.js)
+            const ctx = document.getElementById('compareChart').getContext('2d');
+            
+            if (compareChartInstance) {
+                compareChartInstance.destroy();
+            }
+
+            const colors = ['#4f46e5', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+            
+            const datasets = displayLabels.map((label, i) => ({
+                label: label,
+                data: dataMatrix[i],
+                borderColor: colors[i % colors.length],
+                backgroundColor: colors[i % colors.length],
+                tension: 0.1,
+                fill: false
+            }));
+
+            // データの最小・最大を求めてスケールを調整
+            let allData = [];
+            dataMatrix.forEach(row => allData.push(...row));
+            // データが全て0の場合などの対策
+            const minVal = allData.length > 0 ? Math.min(...allData) : 0;
+            const maxVal = allData.length > 0 ? Math.max(...allData) : 10;
+            const range = maxVal - minVal;
+            const padding = (range === 0) ? 0.5 : range * 0.1; // 差がない場合は0.5、ある場合は範囲の10%
+
+            compareChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: xLabels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `期待値比較 (${axisName}の推移)`
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: axisName
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '期待値 (点)'
+                            },
+                            beginAtZero: false, // 0から始めない
+                            min: Math.floor((minVal - padding) * 10) / 10,
+                            max: Math.ceil((maxVal + padding) * 10) / 10
+                        }
+                    }
+                }
+            });
+        }
+
+        function downloadChart() {
+            const canvas = document.getElementById('compareChart');
+            if (!canvas) return;
+            
+            // 背景を白にするために一時的なキャンバスを作成する（Chart.jsのデフォルトは透過）
+            const newCanvas = document.createElement('canvas');
+            newCanvas.width = canvas.width;
+            newCanvas.height = canvas.height;
+            const ctx = newCanvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
+            ctx.drawImage(canvas, 0, 0);
+
+            const link = document.createElement('a');
+            link.download = `WS_Compare_Chart_${new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-')}.png`;
+            link.href = newCanvas.toDataURL('image/png');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // ====================================================================
+        // 通常モード用（既存機能）
+        // ====================================================================
+        
         let lastProbabilities = null;
         let lastSettings = null;
         let lastExpectation = 0;
-
-        // ====================================================================
-        // 🛠️ 設定保存・読み込み関数
-        // ====================================================================
 
         function saveSettings() {
             localStorage.setItem('ws_deckSize', document.getElementById('deckSize').value);
@@ -297,574 +940,28 @@
             }
         }
 
-        // ====================================================================
-        // ヴァイスシュヴァルツ ダメージシミュレーター クラス 
-        // ====================================================================
-
-        class WeissDamageSimulator {
-            constructor() {
-                this.rng = Math;
-                this.discardPile = [];
-            }
-
-            _shuffle(deck) {
-                for (let i = deck.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [deck[i], deck[j]] = [deck[j], deck[i]];
-                }
-            }
-
-            _refresh(deck, totalPassedDamage, applyRefreshDamage) {
-                const addedDamage = applyRefreshDamage ? 1 : 0;
-                deck.push(...this.discardPile);
-                this.discardPile = [];
-                this._shuffle(deck);
-                return [addedDamage, deck];
-            }
-            
-            _processMokaEffect(currentDeck, count = 2) {
-                if (currentDeck.length === 0) return;
-                const revealedCards = currentDeck.splice(0, count); 
-                const cxCards = [];
-                const otherCards = [];
-                for (const card of revealedCards) {
-                    if (card === Card.CX) { cxCards.push(card); } 
-                    else { otherCards.push(card); }
-                }
-                this.discardPile.push(...cxCards);
-                this._shuffle(otherCards); 
-                currentDeck.unshift(...otherCards);
-            }
-
-            _processUnCXTopEffect(currentDeck) {
-                currentDeck.unshift(Card.UnCX);
-            }
-
-            _processBuryShuffleEffect(currentDeck, count) {
-                if (count <= 0) return;
-                for (let i = 0; i < count; i++) {
-                    currentDeck.push(Card.UnCX);
-                }
-                this._shuffle(currentDeck);
-            }
-            
-            /**
-             * 山札下処理 (リフレッシュ対応版)
-             * 山札の下からn枚を控え室に送り、その中のCX枚数と、リフレッシュで発生したダメージを返す。
-             */
-            _processBottomScrapeEffect(currentDeck, amountN, totalPassedDamage, applyRefreshDamage) {
-                let scrapedCXCount = 0;
-                let refreshDamageTotal = 0;
-
-                // 0. 指定枚数が現在の山札以上であることを確認
-                if (amountN > currentDeck.length) {
-                    // 山札が足りない場合
-
-                    // 1. 山札（すべて）を控室におく
-                    const currentLength = currentDeck.length;
-                    let remainingNeeded = amountN - currentLength;
-                    
-                    const firstScrapedCards = currentDeck.splice(0, currentLength);
-                    this.discardPile.push(...firstScrapedCards);
-                    scrapedCXCount += firstScrapedCards.filter(card => card === Card.CX).length;
-
-                    // 2. 控室をリフレッシュ (リフレッシュポイントを加算)
-                    const [addedDamage, _] = this._refresh(currentDeck, totalPassedDamage + refreshDamageTotal, applyRefreshDamage);
-                    refreshDamageTotal += addedDamage;
-
-                    // 3. 指定枚数の残りを控室におく (新しい山札の下から)
-                    // リフレッシュ後の山札から残りの枚数を取り除く (足りない場合はあるだけ)
-                    const secondScrapeCount = Math.min(currentDeck.length, remainingNeeded);
-                    
-                    const secondScrapedCards = currentDeck.splice(currentDeck.length - secondScrapeCount, secondScrapeCount);
-                    this.discardPile.push(...secondScrapedCards);
-                    scrapedCXCount += secondScrapedCards.filter(card => card === Card.CX).length;
-
-                } else {
-                    // 山札が足りる場合 (通常処理)
-                    const scrapedCards = currentDeck.splice(currentDeck.length - amountN, amountN);
-                    this.discardPile.push(...scrapedCards);
-                    scrapedCXCount += scrapedCards.filter(card => card === Card.CX).length;
-                }
-                
-                // 4. CXがあった場合は... (呼び出し元で利用)
-                return [scrapedCXCount, refreshDamageTotal];
-            }
-
-            _processDamage(currentDeck, damageAmount, totalPassedDamage, applyRefreshDamage) {
-                let passedDamage = 0;
-                let refreshDamage = 0;
-                
-                if (damageAmount <= 0) {
-                     return [0, 0, false];
-                }
-
-                for (let i = 0; i < damageAmount; i++) {
-                    if (currentDeck.length === 0) {
-                        const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
-                        refreshDamage += addedDamage;
-                        totalPassedDamage += addedDamage;
-                        currentDeck = newDeck;
-                        if (currentDeck.length === 0) break;
-                    }
-
-                    const drawnCard = currentDeck.shift();
-
-                    if (drawnCard === Card.CX) {
-                        this.discardPile.push(drawnCard);
-                        passedDamage = 0;
-                        break;
-                    }
-
-                    passedDamage++;
-                    this.discardPile.push(drawnCard);
-                }
-                
-                const finalCancellationStatus = (damageAmount > 0 && passedDamage === 0);
-                return [passedDamage, refreshDamage, finalCancellationStatus];
-            }
-
-            runSimulation(initialDeckSize, cxCount, initialDiscardSize, initialDiscardCxCount, actions, simulations, applyRefreshDamage) {
-                const damageCounts = {};
-                const unCxCount = initialDeckSize - cxCount;
-                const initialDiscardUnCx = initialDiscardSize - initialDiscardCxCount;
-                
-                const maxPossibleDamage = actions.reduce((sum, d) => sum + d.amount, 0) * 2 + 10;
-
-                for (let sim = 0; sim < simulations; sim++) {
-                    this.discardPile = Array(initialDiscardCxCount).fill(Card.CX).concat(Array(initialDiscardUnCx).fill(Card.UnCX));
-                    
-                    let deck = Array(cxCount).fill(Card.CX).concat(Array(unCxCount).fill(Card.UnCX));
-                    this._shuffle(deck);
-
-                    let totalPassedDamage = 0;
-                    let lastDamageCancelled = false;
-                    
-                    let currentDeck = deck; 
-                    for (const action of actions) {
-                        let currentActionAmount = action.amount;
-
-                        // 2a. (Nb) 山札にカードを加えてシャッフル
-                        if (action.hasBuryShuffle) {
-                            this._processBuryShuffleEffect(currentDeck, currentActionAmount);
-                            continue; 
-                        }
-                        
-                        // 2b. 山札下処理系 (Ns, tm, ty)
-                        let bottomScrapeCX = 0;
-                        let bottomScrapeRefreshDamage = 0;
-
-                        if (action.hasBottomScrape || action.hasTemari || action.hasToya) {
-                            const [cxCount, refDmg] = this._processBottomScrapeEffect(currentDeck, currentActionAmount, totalPassedDamage, applyRefreshDamage);
-                            bottomScrapeCX = cxCount;
-                            bottomScrapeRefreshDamage = refDmg;
-                            totalPassedDamage += bottomScrapeRefreshDamage;
-                        }
-
-                        // ロジック分岐
-                        if (action.hasBottomScrape) {
-                            currentActionAmount = bottomScrapeCX; // ダメージ量はCX枚数
-                        } else if (action.hasTemari) {
-                            // 手毬: CXがあれば1点、なければ0点
-                            currentActionAmount = (bottomScrapeCX > 0) ? 1 : 0;
-                        } else if (action.hasToya) {
-                            // 冬弥: CX枚数回、1点ダメージを与える (ループ処理)
-                            for(let i=0; i < bottomScrapeCX; i++) {
-                                // リフレッシュチェック
-                                while (currentDeck.length === 0) { 
-                                    const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
-                                    totalPassedDamage += addedDamage;
-                                    currentDeck = newDeck;
-                                    if (currentDeck.length === 0) break;
-                                }
-                                
-                                const results = this._processDamage(currentDeck, 1, totalPassedDamage, applyRefreshDamage);
-                                totalPassedDamage += results[0];
-                                totalPassedDamage += results[1];
-                                lastDamageCancelled = results[2]; // 最後のダメージの結果で更新
-                            }
-                            // 冬弥処理完了後、次のアクションへ
-                            continue;
-                        }
-
-                        // 2c. (Nc) 条件付きダメージ
-                        if (action.hasConditionalCancel) {
-                            if (!lastDamageCancelled) continue; 
-                        }
-                        
-                        // 2d. ダメージ処理 (N, Nm, Nu, Ns, Nc, tm)
-                        
-                        while (currentDeck.length === 0 && currentActionAmount > 0) { 
-                            const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
-                            totalPassedDamage += addedDamage;
-                            currentDeck = newDeck;
-                            if (currentDeck.length === 0) break;
-                        }
-                        
-                        if (currentDeck.length > 0) { 
-                            if (action.hasUnCXTop) this._processUnCXTopEffect(currentDeck);
-                            if (action.hasMoka) {
-                                this._processMokaEffect(currentDeck, 2);
-                                while (currentDeck.length === 0) {
-                                    const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
-                                    totalPassedDamage += addedDamage;
-                                    currentDeck = newDeck;
-                                    if (currentDeck.length === 0) break; 
-                                }
-                            }
-                            if (action.hasTop3Moka) {
-                                this._processMokaEffect(currentDeck, 3);
-                                while (currentDeck.length === 0) {
-                                    const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
-                                    totalPassedDamage += addedDamage;
-                                    currentDeck = newDeck;
-                                    if (currentDeck.length === 0) break; 
-                                }
-                            }
-                        }
-                        
-                        const results = this._processDamage(currentDeck, currentActionAmount, totalPassedDamage, applyRefreshDamage);
-                        totalPassedDamage += results[0];
-                        totalPassedDamage += results[1];
-                        lastDamageCancelled = results[2];
-                    }
-
-                    damageCounts[totalPassedDamage] = (damageCounts[totalPassedDamage] || 0) + 1;
-                }
-
-                const cumulativeProbabilities = {};
-                let cumulativeCount = 0;
-                for (let d = maxPossibleDamage; d >= 1; d--) {
-                    cumulativeCount += damageCounts[d] || 0;
-                    if (cumulativeCount > 0) {
-                        cumulativeProbabilities[d] = cumulativeCount / simulations;
-                    }
-                }
-
-                return cumulativeProbabilities;
-            }
-        }
-
-        // ====================================================================
-        // 🚀 UI操作と実行関数
-        // ====================================================================
-
-        const simulator = new WeissDamageSimulator();
-        const resultsOutput = document.getElementById('resultsOutput');
-        const statusMessage = document.getElementById('statusMessage');
-        const runButton = document.getElementById('runButton');
-        const summaryText = document.getElementById('summaryText');
-        const expectationDiv = document.getElementById('lethalExpectation');
-        const expectationValueText = document.getElementById('expectationValue');
-        
         function showCustomMessage(message, type = 'info') {
             const alertDiv = document.createElement('div');
-            const colorMap = {
-                'red': { bg: '#f8d7da', text: '#721c24' },
-                'info': { bg: '#d4edda', text: '#155724' }
-            };
+            const colorMap = { 'red': { bg: '#f8d7da', text: '#721c24' }, 'info': { bg: '#d4edda', text: '#155724' } };
             const colors = colorMap[type] || colorMap['info'];
-
             alertDiv.textContent = message;
-            alertDiv.style.cssText = `
-                position: fixed; top: 20px; right: 20px; 
-                padding: 10px 20px; border-radius: 8px; 
-                background-color: ${colors.bg}; 
-                color: ${colors.text}; 
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
-                z-index: 1000;
-                opacity: 0;
-                transition: opacity 0.5s ease-in-out;
-            `;
+            alertDiv.style.cssText = `position: fixed; top: 20px; right: 20px; padding: 10px 20px; border-radius: 8px; background-color: ${colors.bg}; color: ${colors.text}; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; opacity: 0; transition: opacity 0.5s ease-in-out;`;
             document.body.appendChild(alertDiv);
-            
             setTimeout(() => { alertDiv.style.opacity = 1; }, 10);
-            setTimeout(() => {
-                alertDiv.style.opacity = 0;
-                setTimeout(() => document.body.removeChild(alertDiv), 500);
-            }, 4000);
-        }
-
-        function showImagePreviewModal(base64Image) {
-            const modal = document.getElementById('imagePreviewModal');
-            const content = document.getElementById('imagePreviewContent');
-            const previewImage = document.getElementById('previewImage');
-            const downloadButton = document.getElementById('downloadButton');
-            
-            previewImage.src = base64Image;
-            downloadButton.onclick = () => downloadImage(base64Image); 
-
-            modal.classList.remove('hidden');
-            modal.classList.add('flex', 'modal-enter'); 
-            
-            setTimeout(() => {
-                modal.classList.add('modal-enter-active');
-                content.classList.add('modal-content-enter-active');
-                content.classList.remove('scale-95', 'opacity-0');
-            }, 10);
-        }
-
-        function closeImagePreviewModal() {
-            const modal = document.getElementById('imagePreviewModal');
-            const content = document.getElementById('imagePreviewContent');
-
-            modal.classList.remove('modal-enter-active');
-            modal.classList.add('modal-leave-active');
-            content.classList.remove('modal-content-enter-active');
-            content.classList.add('scale-95', 'opacity-0');
-
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex', 'modal-leave-active', 'modal-enter');
-            }, 300); 
-        }
-
-        function downloadImage(base64Image) {
-            const link = document.createElement('a');
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            link.download = `WS_Lethal_Calc_Result_${timestamp}.png`;
-            link.href = base64Image;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            showCustomMessage("画像をダウンロードしました。", 'info');
-            closeImagePreviewModal();
-        }
-
-        function showExplanationModal() {
-            const modal = document.getElementById('explanationModal');
-            const content = document.getElementById('modalContent');
-            
-            modal.classList.remove('hidden');
-            modal.classList.add('flex', 'modal-enter'); 
-            
-            setTimeout(() => {
-                modal.classList.add('modal-enter-active');
-                content.classList.add('modal-content-enter-active');
-                content.classList.remove('scale-95', 'opacity-0');
-            }, 10);
-        }
-
-        function closeExplanationModal() {
-            const modal = document.getElementById('explanationModal');
-            const content = document.getElementById('modalContent');
-
-            modal.classList.remove('modal-enter-active');
-            modal.classList.add('modal-leave-active');
-            content.classList.remove('modal-content-enter-active');
-            content.classList.add('scale-95', 'opacity-0');
-
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex', 'modal-leave-active', 'modal-enter');
-            }, 300);
-        }
-        
-        function displayResults(probabilities, simulations, initialDeckSize, cxCount, initialDiscardSize, initialDiscardCxCount, actions, timeTaken) {
-            resultsOutput.innerHTML = '';
-            
-            const maxDamageResult = Math.max(...Object.keys(probabilities).map(Number));
-            const results = [];
-            
-            const expectation = Object.values(probabilities).reduce((sum, prob) => sum + prob, 0);
-            expectationDiv.classList.remove('hidden');
-            expectationValueText.textContent = `${expectation.toFixed(2)}点`;
-
-            const damagesString = actions.map(d => {
-                if (d.hasBuryShuffle) return `${d.amount}b`;
-                if (d.hasBottomScrape) return `${d.amount}s`; 
-                if (d.hasTemari) return `${d.amount}tm`; // 手毬
-                if (d.hasToya) return `${d.amount}ty`;   // 冬弥
-                return `${d.amount}${d.hasMoka ? 'm' : ''}${d.hasTop3Moka ? 't' : ''}${d.hasUnCXTop ? 'u' : ''}${d.hasConditionalCancel ? 'c' : ''}`;
-            }).join(', ');
-            
-            lastProbabilities = probabilities;
-            lastSettings = { initialDeckSize, cxCount, initialDiscardSize, initialDiscardCxCount, damagesString };
-            lastExpectation = expectation; 
-            document.getElementById('imageOutputButton').classList.remove('hidden');
-            
-            updateImageSource(probabilities, lastSettings, lastExpectation);
-
-            for (let d = 1; d <= maxDamageResult; d++) {
-                const prob = probabilities[d] || 0.0;
-                
-                const percentage = (prob * 100).toFixed(2);
-                const barWidth = Math.max(parseFloat(percentage), 1); 
-                
-                let barColor;
-                if (prob >= 0.8) {
-                    barColor = 'bg-green-600'; 
-                } else if (prob >= 0.5) {
-                    barColor = 'bg-yellow-500'; 
-                } else if (prob >= 0.3) {
-                    barColor = 'bg-orange-400'; 
-                } else {
-                    barColor = 'bg-red-500'; 
-                }
-
-                results.push(`
-                    <div class="flex items-center space-x-2">
-                        <span class="font-mono text-sm text-gray-500 flex-shrink-0 whitespace-nowrap w-16">${d}点以上</span>
-                        <div class="flex-grow bg-gray-200 rounded-full h-6 relative overflow-hidden">
-                            <div class="${barColor} h-full rounded-full transition-all duration-300 ease-out" style="width: ${barWidth}%;"></div>
-                             <span class="absolute right-0 top-0 bottom-0 pr-2 flex items-center text-xs font-bold text-gray-800">${percentage}%</span>
-                        </div>
-                       
-                    </div>
-                `);
-            }
-
-            resultsOutput.innerHTML = results.join('');
-
-            summaryText.textContent = `
-                設定：山札${initialDeckSize}枚(CX${cxCount}枚) / 控室${initialDiscardSize}枚(CX${initialDiscardCxCount}枚)、ダメージ列 ${damagesString}。
-                ${simulations}回のシミュレーションを ${(timeTaken / 1000).toFixed(3)} 秒で実行しました。
-            `;
-        }
-
-        // --- ログ追加機能 ---
-        function addLogEntry(settings, expectation) {
-            const logOutput = document.getElementById('logOutput');
-            const emptyMsg = document.getElementById('emptyLogMessage');
-            if (emptyMsg) {
-                emptyMsg.remove();
-            }
-
-            const { initialDeckSize, cxCount, initialDiscardSize, initialDiscardCxCount, damagesString } = settings;
-            const timeString = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-            const logItem = document.createElement('div');
-            logItem.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition animate-fade-in-down'; 
-            
-            logItem.style.animation = "fadeIn 0.5s ease-out";
-
-            logItem.innerHTML = `
-                <div class="flex-grow">
-                    <div class="flex justify-between items-baseline mb-1">
-                        <span class="font-bold text-indigo-700 text-lg">${expectation.toFixed(2)}点</span>
-                        <span class="text-xs text-gray-400">${timeString}</span>
-                    </div>
-                    <div class="text-xs text-gray-600 font-mono bg-white border border-gray-200 rounded px-2 py-1 mb-1 break-all">
-                        ${damagesString}
-                    </div>
-                    <div class="text-xs text-gray-500 flex gap-2">
-                        <span>山:${initialDeckSize}(${cxCount})</span>
-                        <span>控:${initialDiscardSize}(${initialDiscardCxCount})</span>
-                    </div>
-                </div>
-            `;
-
-            logOutput.insertBefore(logItem, logOutput.firstChild);
-        }
-
-        // フェードインアニメーション定義
-        const style = document.createElement('style');
-        style.innerHTML = `
-            @keyframes fadeIn {
-                from { opacity: 0; transform: translateY(-10px); }
-                to { opacity: 1; transform: translateY(0); }
-            }
-        `;
-        document.head.appendChild(style);
-        // -----------------------------
-
-        function updateImageSource(probabilities, settings, expectation) {
-            const { initialDeckSize, cxCount, initialDiscardSize, initialDiscardCxCount, damagesString } = settings;
-            const imageSource = document.getElementById('imageSource');
-            const maxDamageResult = Math.max(...Object.keys(probabilities).map(Number));
-            let contentHtml = '';
-
-            contentHtml += `
-                <div style="font-family: 'Inter', sans-serif; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #1f2937; margin-bottom: 1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
-                        WSリーサル計算機 結果
-                    </h3>
-                    <div style="font-size: 0.9rem; line-height: 1.5; color: #374151; margin-bottom: 1.5rem;">
-                        <p style="margin-bottom: 4px; font-weight: 600; color: #4b5563;">山札：${initialDeckSize}枚(CX${cxCount}枚) / 控室：${initialDiscardSize}枚(CX${initialDiscardCxCount}枚)</p>
-                        <p style="font-weight: 600; color: #4b5563; word-break: break-all;">ダメージ：${damagesString}</p>
-                    </div>
-                    
-                    <div style="margin-bottom: 1.5rem;">
-                        <p style="font-size: 0.8rem; color: #4b5563;">リーサル期待値 (通るダメージの平均)</p>
-                        <p style="font-size: 2.2rem; font-weight: 900; color: #4338ca;">${expectation.toFixed(2)}点</p>
-                    </div>
-
-                    <div style="font-size: 1rem; line-height: 1.5; color: #374151; display: flex; flex-direction: column; gap: 8px;">
-            `;
-            
-            const imageMaxDamage = parseInt(document.getElementById('imageMaxDamage').value) || 0;
-            const loopLimit = imageMaxDamage > 0 ? imageMaxDamage : maxDamageResult;
-
-            for (let d = 1; d <= loopLimit; d++) {
-                const prob = probabilities[d] || 0.0;
-                const percentage = (prob * 100);
-
-                if (imageMaxDamage === 0 && percentage <= 1.00) {
-                    continue;
-                }
-
-                const percentageString = percentage.toFixed(2);
-                const barWidth = Math.max(parseFloat(percentage), 1);
-                
-                let barColor;
-                if (prob >= 0.8) {
-                    barColor = '#059669'; 
-                } else if (prob >= 0.5) {
-                    barColor = '#f59e0b'; 
-                } else if (prob >= 0.3) {
-                    barColor = '#fb923c'; 
-                } else {
-                    barColor = '#ef4444'; 
-                }
-
-                contentHtml += `
-                    <div style="display: flex; align-items: center; gap: 8px; ">
-                        <span style="font-size: 14px; color: #6b7280; flex-shrink: 0; white-space: nowrap; width: 64px;">${d}点以上</span> 
-                        <div style="flex-grow: 1; background-color: #e5e7eb; border-radius: 9999px; height: 24px; position: relative; overflow: hidden;"> 
-                            <div style="background-color: ${barColor}; height: 100%; border-radius: 9999px; width: ${barWidth}%;"></div>
-                            <span style="position: absolute; right: 0; top: 0; bottom: 0; padding-right: 8px; display: flex; align-items: center; font-size: 12px; font-weight: 700; color: #1f2937;">${percentageString}%</span> 
-                        </div>
-                    </div>
-                `;
-            }
-
-            contentHtml += `</div></div>`;
-            imageSource.innerHTML = contentHtml;
-        }
-
-        async function generateImage() {
-            if (!lastProbabilities || !lastSettings) {
-                showCustomMessage("シミュレーションを実行してから画像を出力してください。", 'red');
-                return;
-            }
-            
-            updateImageSource(lastProbabilities, lastSettings, lastExpectation);
-
-            const sourceElement = document.getElementById('imageSource');
-            
-            try {
-                const canvas = await html2canvas(sourceElement, {
-                    scale: 2, 
-                    useCORS: true,
-                    backgroundColor: '#ffffff'
-                });
-
-                const base64Image = canvas.toDataURL("image/png");
-                showImagePreviewModal(base64Image);
-                
-            } catch (error) {
-                console.error("画像生成エラー:", error);
-                showCustomMessage("画像の生成中にエラーが発生しました。", "red"); 
-            }
+            setTimeout(() => { alertDiv.style.opacity = 0; setTimeout(() => document.body.removeChild(alertDiv), 500); }, 4000);
         }
 
         async function handleSimulation() {
             saveSettings();
-            
+            const runButton = document.getElementById('runButton');
+            const statusMessage = document.getElementById('statusMessage');
+            const resultsOutput = document.getElementById('resultsOutput');
+            const summaryText = document.getElementById('summaryText');
+            const expectationDiv = document.getElementById('lethalExpectation');
+            const expectationValueText = document.getElementById('expectationValue');
+
             runButton.disabled = true;
             statusMessage.classList.remove('hidden'); 
-
             resultsOutput.innerHTML = '';
             summaryText.textContent = '';
             expectationDiv.classList.add('hidden'); 
@@ -877,44 +974,14 @@
                 const initialDiscardCxCount = parseInt(document.getElementById('discardCxCount').value);
                 const simulations = parseInt(document.getElementById('simulations').value);
                 const applyRefreshDamage = document.getElementById('refreshToggle').checked;
+                const rawDamagesInput = document.getElementById('damages').value;
                 
-                const damagesInput = document.getElementById('damages').value;
+                const actions = parseActions(rawDamagesInput);
                 
-                const actions = damagesInput.split(',').map(s => {
-                    const trimmed = s.trim();
-                    const hasMoka = trimmed.toLowerCase().includes('m');
-                    const hasUnCXTop = trimmed.toLowerCase().includes('u');
-                    const hasBuryShuffle = trimmed.toLowerCase().includes('b');
-                    const hasConditionalCancel = trimmed.toLowerCase().includes('c');
-                    const hasBottomScrape = trimmed.toLowerCase().includes('s'); 
-                    // 新しいフラグ
-                    const hasTemari = trimmed.toLowerCase().includes('tm'); // Ntm
-                    const hasToya = trimmed.toLowerCase().includes('ty');   // Nty
-                    const hasTop3Moka = trimmed.toLowerCase().includes('t') && !hasTemari && !hasToya; // Nt (tを含み、かつtm, tyではない)
-                    
-                    const amountStr = trimmed.replace(/[^0-9]/g, ''); 
-                    const amount = parseInt(amountStr);
-                    
-                    if (isNaN(amount) || amount <= 0) return null;
-
-                    const isDamage = !hasBuryShuffle; 
-
-                    return { amount, isDamage, hasMoka, hasUnCXTop, hasBuryShuffle, hasConditionalCancel, hasBottomScrape, hasTop3Moka, hasTemari, hasToya };
-                }).filter(item => item !== null);
-
-                // バリデーション
-                if (initialDeckSize <= 0 || cxCount < 0 || simulations < 1 || actions.length === 0) {
-                    throw new Error("入力値が不正です。枚数や回数は正の数、ダメージ列はカンマ区切りで入力してください。");
-                }
-                if (cxCount > initialDeckSize) {
-                    throw new Error("初期山札CX枚数が初期山札枚数を超えています。");
-                }
-                if (initialDiscardCxCount > initialDiscardSize) {
-                    throw new Error("初期控室CX枚数が初期控室枚数を超えています。");
-                }
-                if (initialDeckSize + initialDiscardSize <= 0) {
-                    throw new Error("山札と控室の合計枚数が0枚です。");
-                }
+                if (initialDeckSize <= 0 || cxCount < 0 || simulations < 1 || actions.length === 0) throw new Error("入力値が不正です。");
+                if (cxCount > initialDeckSize) throw new Error("初期山札CX枚数が初期山札枚数を超えています。");
+                if (initialDiscardCxCount > initialDiscardSize) throw new Error("初期控室CX枚数が初期控室枚数を超えています。");
+                if (initialDeckSize + initialDiscardSize <= 0) throw new Error("山札と控室の合計枚数が0枚です。");
 
                 await new Promise(resolve => setTimeout(resolve, 10)); 
 
@@ -922,7 +989,37 @@
                 const probabilities = simulator.runSimulation(initialDeckSize, cxCount, initialDiscardSize, initialDiscardCxCount, actions, simulations, applyRefreshDamage);
                 const endTime = performance.now();
                 
-                displayResults(probabilities, simulations, initialDeckSize, cxCount, initialDiscardSize, initialDiscardCxCount, actions, endTime - startTime);
+                // 結果表示ロジック (簡略化のためインライン)
+                const maxDamageResult = Math.max(...Object.keys(probabilities).map(Number));
+                const expectation = Object.values(probabilities).reduce((sum, prob) => sum + prob, 0);
+                expectationDiv.classList.remove('hidden');
+                expectationValueText.textContent = `${expectation.toFixed(2)}点`;
+
+                lastProbabilities = probabilities;
+                lastSettings = { initialDeckSize, cxCount, initialDiscardSize, initialDiscardCxCount, damagesString: rawDamagesInput };
+                lastExpectation = expectation;
+                
+                updateImageSource(probabilities, lastSettings, lastExpectation);
+                document.getElementById('imageOutputButton').classList.remove('hidden');
+
+                const resultsHtml = [];
+                for (let d = 1; d <= maxDamageResult; d++) {
+                    const prob = probabilities[d] || 0.0;
+                    const percentage = (prob * 100).toFixed(2);
+                    const barWidth = Math.max(parseFloat(percentage), 1); 
+                    let barColor = prob >= 0.8 ? 'bg-green-600' : prob >= 0.5 ? 'bg-yellow-500' : prob >= 0.3 ? 'bg-orange-400' : 'bg-red-500';
+                    resultsHtml.push(`
+                        <div class="flex items-center space-x-2">
+                            <span class="font-mono text-sm text-gray-500 flex-shrink-0 whitespace-nowrap w-16">${d}点以上</span>
+                            <div class="flex-grow bg-gray-200 rounded-full h-6 relative overflow-hidden">
+                                <div class="${barColor} h-full rounded-full transition-all duration-300 ease-out" style="width: ${barWidth}%;"></div>
+                                <span class="absolute right-0 top-0 bottom-0 pr-2 flex items-center text-xs font-bold text-gray-800">${percentage}%</span>
+                            </div>
+                        </div>
+                    `);
+                }
+                resultsOutput.innerHTML = resultsHtml.join('');
+                summaryText.textContent = `設定：山札${initialDeckSize}枚(CX${cxCount}枚) / 控室${initialDiscardSize}枚(CX${initialDiscardCxCount}枚)、ダメージ列 ${rawDamagesInput}。${simulations}回のシミュレーションを ${(endTime - startTime).toFixed(3)} msで実行しました。`;
                 
                 addLogEntry(lastSettings, lastExpectation);
 
@@ -935,9 +1032,113 @@
             }
         }
 
-        window.onload = () => {
-             loadSettings();
-        };
+        // ログ追加
+        function addLogEntry(settings, expectation) {
+            const logOutput = document.getElementById('logOutput');
+            const emptyMsg = document.getElementById('emptyLogMessage');
+            if (emptyMsg) emptyMsg.remove();
+            const timeString = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const logItem = document.createElement('div');
+            logItem.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition';
+            logItem.innerHTML = `
+                <div class="flex-grow">
+                    <div class="flex justify-between items-baseline mb-1">
+                        <span class="font-bold text-indigo-700 text-lg">${expectation.toFixed(2)}点</span>
+                        <span class="text-xs text-gray-400">${timeString}</span>
+                    </div>
+                    <div class="text-xs text-gray-600 font-mono bg-white border border-gray-200 rounded px-2 py-1 mb-1 break-all">${settings.damagesString}</div>
+                    <div class="text-xs text-gray-500 flex gap-2"><span>山:${settings.initialDeckSize}(${settings.cxCount})</span><span>控:${settings.initialDiscardSize}(${settings.initialDiscardCxCount})</span></div>
+                </div>
+            `;
+            logOutput.insertBefore(logItem, logOutput.firstChild);
+        }
+
+        // 画像生成用HTML更新
+        function updateImageSource(probabilities, settings, expectation) {
+            const { initialDeckSize, cxCount, initialDiscardSize, initialDiscardCxCount, damagesString } = settings;
+            const imageSource = document.getElementById('imageSource');
+            const maxDamageResult = Math.max(...Object.keys(probabilities).map(Number));
+            const imageMaxDamage = parseInt(document.getElementById('imageMaxDamage').value) || 0;
+            const loopLimit = imageMaxDamage > 0 ? imageMaxDamage : maxDamageResult;
+
+            let contentHtml = `
+                <div style="font-family: 'Inter', sans-serif; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #1f2937; margin-bottom: 1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">WSリーサル計算機 結果</h3>
+                    <div style="font-size: 0.9rem; line-height: 1.5; color: #374151; margin-bottom: 1.5rem;">
+                        <p style="margin-bottom: 4px; font-weight: 600; color: #4b5563;">山札：${initialDeckSize}枚(CX${cxCount}枚) / 控室：${initialDiscardSize}枚(CX${initialDiscardCxCount}枚)</p>
+                        <p style="font-weight: 600; color: #4b5563; word-break: break-all;">ダメージ：${damagesString}</p>
+                    </div>
+                    <div style="margin-bottom: 1.5rem;">
+                        <p style="font-size: 0.8rem; color: #4b5563;">リーサル期待値 (通るダメージの平均)</p>
+                        <p style="font-size: 2.2rem; font-weight: 900; color: #4338ca;">${expectation.toFixed(2)}点</p>
+                    </div>
+                    <div style="font-size: 1rem; line-height: 1.5; color: #374151; display: flex; flex-direction: column; gap: 8px;">
+            `;
+            for (let d = 1; d <= loopLimit; d++) {
+                const prob = probabilities[d] || 0.0;
+                const percentage = (prob * 100);
+                if (imageMaxDamage === 0 && percentage <= 1.00) continue;
+                const percentageString = percentage.toFixed(2);
+                const barWidth = Math.max(parseFloat(percentage), 1);
+                let barColor = prob >= 0.8 ? '#059669' : prob >= 0.5 ? '#f59e0b' : prob >= 0.3 ? '#fb923c' : '#ef4444';
+                contentHtml += `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 14px; color: #6b7280; flex-shrink: 0; white-space: nowrap; width: 64px;">${d}点以上</span>
+                        <div style="flex-grow: 1; background-color: #e5e7eb; border-radius: 9999px; height: 24px; position: relative; overflow: hidden;">
+                            <div style="background-color: ${barColor}; height: 100%; border-radius: 9999px; width: ${barWidth}%;"></div>
+                            <span style="position: absolute; right: 0; top: 0; bottom: 0; padding-right: 8px; display: flex; align-items: center; font-size: 12px; font-weight: 700; color: #1f2937;">${percentageString}%</span>
+                        </div>
+                    </div>
+                `;
+            }
+            contentHtml += `</div></div>`;
+            imageSource.innerHTML = contentHtml;
+        }
+
+        async function generateImage() {
+            if (!lastProbabilities || !lastSettings) { showCustomMessage("シミュレーションを実行してから画像を出力してください。", 'red'); return; }
+            updateImageSource(lastProbabilities, lastSettings, lastExpectation);
+            try {
+                const canvas = await html2canvas(document.getElementById('imageSource'), { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                showImagePreviewModal(canvas.toDataURL("image/png"));
+            } catch (error) { console.error("画像生成エラー:", error); showCustomMessage("画像の生成中にエラーが発生しました。", "red"); }
+        }
+
+        // モーダル操作系
+        function showImagePreviewModal(base64Image) {
+            const modal = document.getElementById('imagePreviewModal');
+            const previewImage = document.getElementById('previewImage');
+            const downloadButton = document.getElementById('downloadButton');
+            previewImage.src = base64Image;
+            downloadButton.onclick = () => {
+                const link = document.createElement('a');
+                link.download = `WS_Lethal_Calc_Result_${new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-')}.png`;
+                link.href = base64Image;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                closeImagePreviewModal();
+            };
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.querySelector('#imagePreviewContent').classList.remove('scale-95', 'opacity-0'); }, 10);
+        }
+        function closeImagePreviewModal() {
+            const modal = document.getElementById('imagePreviewModal');
+            modal.querySelector('#imagePreviewContent').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+        function showExplanationModal() {
+            const modal = document.getElementById('explanationModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.querySelector('#modalContent').classList.remove('scale-95', 'opacity-0'); }, 10);
+        }
+        function closeExplanationModal() {
+            const modal = document.getElementById('explanationModal');
+            modal.querySelector('#modalContent').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        window.onload = () => { loadSettings(); };
     </script>
 </body>
 </html>
