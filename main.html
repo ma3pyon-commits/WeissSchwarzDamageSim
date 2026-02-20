@@ -46,7 +46,7 @@
     <div id="app" class="max-w-6xl mx-auto">
         <header class="text-center mb-6 p-4 bg-white rounded-xl shadow-lg">
             <h1 class="text-3xl font-extrabold text-indigo-700">WSリーサル計算機 Pro</h1>
-            <p class="text-sm text-gray-600 mt-2">ダメージ期待値シミュレーター</p>
+            <p class="text-sm text-gray-600 mt-2">ダメージ期待値シミュレーター & 比較ツール</p>
         </header>
 
         <!-- タブナビゲーション -->
@@ -114,7 +114,7 @@
                             </div>
                             <div>
                                 <label for="simulations" class="block text-sm font-medium text-gray-700">シミュレーション回数</label>
-                                <input type="number" id="simulations" value="50000" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                                <input type="number" id="simulations" value="100000" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
                             </div>
                             <div>
                                 <label for="imageMaxDamage" class="block text-sm font-medium text-gray-700">画像出力時の最大表示点数</label>
@@ -210,7 +210,10 @@
                     <!-- ダメージ列リスト管理 -->
                     <div class="mb-6">
                         <div class="flex justify-between items-center mb-2">
-                            <label class="block text-sm font-semibold text-gray-700">ダメージ列リスト</label>
+                            <div class="flex items-center space-x-4">
+                                <label class="block text-sm font-semibold text-gray-700">ダメージ列リスト</label>
+                                <button onclick="showExplanationModal()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 underline">説明を見る</button>
+                            </div>
                             <button onclick="addDamageRow()" class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-200 font-bold">＋ 列を追加</button>
                         </div>
                         <div class="grid grid-cols-12 gap-2 mb-2 px-2 text-xs font-medium text-gray-500">
@@ -233,7 +236,7 @@
                         <div class="flex flex-col sm:flex-row gap-4 items-end">
                             <div class="flex-grow">
                                 <label for="cmp_simulations" class="block text-sm font-medium text-gray-700">シミュレーション回数 (各条件ごと)</label>
-                                <input type="number" id="cmp_simulations" value="10000" min="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                                <input type="number" id="cmp_simulations" value="100000" min="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
                             </div>
                             <button onclick="handleCompareSimulation()" id="compareRunButton" class="w-full sm:w-auto py-2 px-6 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition duration-150 ease-in-out">
                                 比較実行
@@ -278,7 +281,7 @@
 
         <!-- 署名フッター -->
         <footer class="mt-8 text-center text-sm text-gray-500 p-4">
-            <p>レベルアップは未実装@tcepseredutitta</p>
+            <p>PineAme@tcepseredutitta</p>
         </footer>
 
         <!-- モーダル類（共通利用） -->
@@ -294,9 +297,9 @@
                     <ul class="list-disc list-inside space-y-2 pl-4 text-sm">
                         <li><strong class="font-mono text-indigo-600">N</strong>: Nダメージ</li>
                         <li><strong class="font-mono text-indigo-600">(A,B)Nc</strong>: 括弧内のいずれかがキャンセル時、最後にNダメージ</li>
-                        <li><strong class="font-mono text-indigo-600">Nc</strong>: 直前キャンセル時 Nダメージ</li>
-                        <li><strong class="font-mono text-indigo-600">Nb</strong>: N枚逆圧縮</li>
-                        <li><strong class="font-mono text-indigo-600">Nu</strong>: 1枚トップ盛り + Nダメージ</li>
+                        <li><strong class="font-mono text-indigo-600">Nc</strong>: 直前のダメージがキャンセル時 Nダメージ</li>
+                        <li><strong class="font-mono text-indigo-600">Nb</strong>: N枚山札にカードを戻す</li>
+                        <li><strong class="font-mono text-indigo-600">Nu</strong>: 【マックイーン】1枚トップ盛り + Nダメージ</li>
                         <li><strong class="font-mono text-indigo-600">Nm</strong>: モカ + Nダメージ</li>
                         <li><strong class="font-mono text-indigo-600">Nt</strong>: 3枚モカ + Nダメージ</li>
                         <li><strong class="font-mono text-indigo-600">Ns</strong>: 山札下N枚墓地送りCXダメージ</li>
@@ -769,18 +772,29 @@
                     return entry.name ? `${entry.name}` : entry.input;
                 });
 
-                renderCompareResults(targetParam.name, xLabels, displayLabels, resultsMatrix);
+                // 固定パラメータのテキスト生成
+                let fixedParamsText = [];
+                for (const key in params) {
+                    if (key !== variableParamKey) {
+                        fixedParamsText.push(`${params[key].name}: ${params[key].min}`);
+                    }
+                }
+                fixedParamsText.push(`試行回数: ${simulations.toLocaleString()}`);
+                fixedParamsText.push(`リフレッシュ: ${applyRefreshDamage ? 'ON' : 'OFF'}`);
+                const subtitleText = "固定条件: " + fixedParamsText.join(" / ");
+
+                renderCompareResults(targetParam.name, xLabels, displayLabels, resultsMatrix, subtitleText);
                 downloadBtn.classList.remove('hidden');
 
             } catch (error) {
-                alert(error.message);
+                showCustomMessage(error.message, 'red');
             } finally {
                 runBtn.disabled = false;
                 statusMsg.classList.add('hidden');
             }
         }
 
-        function renderCompareResults(axisName, xLabels, displayLabels, dataMatrix) {
+        function renderCompareResults(axisName, xLabels, displayLabels, dataMatrix, subtitleText) {
             // テーブル描画
             const tableHeadTr = document.querySelector('#compareTable thead tr');
             const tableBody = document.querySelector('#compareTable tbody');
@@ -845,7 +859,22 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: `期待値比較 (${axisName}の推移)`
+                            text: `期待値比較 (${axisName}の推移)`,
+                            font: {
+                                size: 16
+                            }
+                        },
+                        subtitle: {
+                            display: true,
+                            text: subtitleText,
+                            font: {
+                                size: 12,
+                                weight: 'normal'
+                            },
+                            color: '#6b7280',
+                            padding: {
+                                bottom: 15
+                            }
                         },
                         tooltip: {
                             mode: 'index',
