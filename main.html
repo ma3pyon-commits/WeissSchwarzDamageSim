@@ -104,7 +104,7 @@
                                 <label for="damages" class="block text-sm font-medium text-gray-700">与えるダメージ列</label>
                                 <button onclick="showExplanationModal()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 underline">説明を見る</button>
                             </div>
-                            <input type="text" id="damages" value="1,3,3,3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="例: (1,3m)2c, 3, 3">
+                            <input type="text" id="damages" value="1,3,3,3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="例: (1,3m)2h, 3, 3">
                         </div>
                         <!-- その他設定 -->
                         <div class="space-y-3 pt-2 border-t border-gray-200">
@@ -263,6 +263,7 @@
 
                     <!-- 表 -->
                     <div class="overflow-x-auto">
+                        <p class="text-xs text-gray-500 mb-2">※表の数値（期待値）をクリックすると、その条件での詳細な確率分布が表示されます。</p>
                         <table id="compareTable" class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
@@ -292,14 +293,16 @@
                     <h3 class="text-xl font-bold text-indigo-700">ダメージ列 凡例</h3>
                     <button onclick="closeExplanationModal()" class="text-gray-400 hover:text-gray-600">×</button>
                 </div>
-                <div class="text-gray-700 space-y-3 overflow-y-auto max-h-[60vh]">
+                <div class="text-gray-700 space-y-3 overflow-y-auto max-h-[70vh] pr-2">
                     <p class="font-semibold text-gray-800">入力形式: カンマ区切りでアクションを記述</p>
                     <ul class="list-disc list-inside space-y-2 pl-4 text-sm">
                         <li><strong class="font-mono text-indigo-600">N</strong>: Nダメージ</li>
-                        <li><strong class="font-mono text-indigo-600">(A,B)Nc</strong>: 括弧内のいずれかがキャンセル時、最後にNダメージ</li>
-                        <li><strong class="font-mono text-indigo-600">Nc</strong>: 直前のダメージがキャンセル時 Nダメージ</li>
-                        <li><strong class="font-mono text-indigo-600">Nb</strong>: N枚山札にカードを戻す</li>
-                        <li><strong class="font-mono text-indigo-600">Nu</strong>: 【マックイーン】1枚トップ盛り + Nダメージ</li>
+                        <li><strong class="font-mono text-indigo-600">(A,B)Nc</strong>: 括弧内の<span class="font-bold underline">いずれか</span>がキャンセル時、最後にNダメージ</li>
+                        <li><strong class="font-mono text-indigo-600">Nc</strong>: 直前キャンセル時 Nダメージ</li>
+                        <li><strong class="font-mono text-indigo-600">(A,B)Nh</strong>: 括弧内の<span class="font-bold underline">いずれか</span>がキャンセルされなかった(ヒットした)時、最後にNダメージ</li>
+                        <li><strong class="font-mono text-indigo-600">Nh</strong>: 直前がキャンセルされなかった(ヒットした)時 Nダメージ</li>
+                        <li><strong class="font-mono text-indigo-600">Nb</strong>: N枚逆圧縮</li>
+                        <li><strong class="font-mono text-indigo-600">Nu</strong>: 1枚トップ盛り + Nダメージ</li>
                         <li><strong class="font-mono text-indigo-600">Nm</strong>: モカ + Nダメージ</li>
                         <li><strong class="font-mono text-indigo-600">Nt</strong>: 3枚モカ + Nダメージ</li>
                         <li><strong class="font-mono text-indigo-600">Ns</strong>: 山札下N枚墓地送りCXダメージ</li>
@@ -327,6 +330,31 @@
                 </div>
             </div>
         </div>
+
+        <!-- 比較詳細モーダル -->
+        <div id="compareDetailModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden transition-opacity duration-300 items-center justify-center p-4" onclick="if (event.target === this) closeCompareDetailModal()">
+            <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 transform transition-all duration-300 scale-95 opacity-0 flex flex-col" id="compareDetailModalContent" style="max-height: 90vh;">
+                <div class="flex justify-between items-center border-b pb-3 mb-4 flex-shrink-0">
+                    <div>
+                        <h3 class="text-xl font-bold text-indigo-700" id="compareDetailTitle">詳細確率</h3>
+                        <p class="text-sm text-gray-500" id="compareDetailSubtitle"></p>
+                    </div>
+                    <button onclick="closeCompareDetailModal()" class="text-gray-400 hover:text-gray-600">×</button>
+                </div>
+                <div class="flex-grow overflow-y-auto mb-4 pr-2">
+                    <div id="compareDetailExpectation" class="mb-4">
+                        <p class="text-sm text-gray-600">リーサル期待値</p>
+                        <p id="compareDetailExpectationValue" class="text-3xl font-extrabold text-indigo-700"></p>
+                    </div>
+                    <div id="compareDetailResultsOutput" class="space-y-3">
+                        <!-- バーグラフがここに挿入される -->
+                    </div>
+                </div>
+                <div class="flex justify-end flex-shrink-0 mt-2">
+                    <button onclick="closeCompareDetailModal()" class="py-2 px-4 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition">閉じる</button>
+                </div>
+            </div>
+        </div>
         
         <!-- 画像生成用隠しコンテナ -->
         <div id="imageSourceContainer" class="absolute top-0 left-0" style="z-index: -10; opacity: 0; pointer-events: none; transform: translateX(-1000px);">
@@ -340,21 +368,36 @@
         // 定義とユーティリティ
         // ====================================================================
         const Card = { CX: 'CX', UnCX: 'UnCX' };
+        
+        // 比較モーダル用のグローバルデータ保持
+        window.currentCompareData = null;
 
         // スリープ関数（非同期処理用）
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-        // 括弧付き構文のプリプロセス (v3準拠)
+        // 括弧付き構文のプリプロセス (c と h に対応)
         function preprocessDamages(input) {
             if (!input) return "";
             let processed = input.replace(/（/g, '(').replace(/）/g, ')');
-            const regex = /\(([^)]+)\)(\d+)c/g;
-            processed = processed.replace(regex, (match, actionsInside, cancelDamage) => {
+            
+            // キャンセル時ダメージ(c)の処理
+            let regexC = /\(([^)]+)\)(\d+)c/g;
+            processed = processed.replace(regexC, (match, actionsInside, cancelDamage) => {
                 const items = actionsInside.split(',').map(s => s.trim()).filter(s => s);
                 if (items.length === 0) return match;
                 items[0] = items[0] + '_monitor_start';
                 return items.join(',') + `,${cancelDamage}c_monitor_check`;
             });
+
+            // ヒット時ダメージ(h)の処理
+            let regexH = /\(([^)]+)\)(\d+)h/g;
+            processed = processed.replace(regexH, (match, actionsInside, hitDamage) => {
+                const items = actionsInside.split(',').map(s => s.trim()).filter(s => s);
+                if (items.length === 0) return match;
+                items[0] = items[0] + '_monitor_start';
+                return items.join(',') + `,${hitDamage}h_monitor_check`;
+            });
+
             return processed;
         }
 
@@ -372,6 +415,7 @@
                 const hasUnCXTop = trimmed.toLowerCase().includes('u');
                 const hasBuryShuffle = trimmed.toLowerCase().includes('b');
                 const hasConditionalCancel = trimmed.toLowerCase().includes('c');
+                const hasConditionalHit = trimmed.toLowerCase().includes('h'); // 追加：ヒット時ダメージ
                 const hasBottomScrape = trimmed.toLowerCase().includes('s');
                 const hasTemari = trimmed.toLowerCase().includes('tm');
                 const hasToya = trimmed.toLowerCase().includes('ty');
@@ -383,14 +427,15 @@
 
                 const isDamage = !hasBuryShuffle;
                 return { 
-                    amount, isDamage, hasMoka, hasUnCXTop, hasBuryShuffle, hasConditionalCancel, 
+                    amount, isDamage, hasMoka, hasUnCXTop, hasBuryShuffle, 
+                    hasConditionalCancel, hasConditionalHit, 
                     hasBottomScrape, hasTop3Moka, hasTemari, hasToya, isMonitorStart, isMonitorCheck 
                 };
             }).filter(item => item !== null);
         }
 
         // ====================================================================
-        // シミュレータ クラス (v3準拠)
+        // シミュレータ クラス
         // ====================================================================
         class WeissDamageSimulator {
             constructor() {
@@ -494,11 +539,17 @@
 
                     let totalPassedDamage = 0;
                     let lastDamageCancelled = false;
-                    let cancelWasMonitorred = false;
+                    let lastDamageHit = false; // 直前のダメージが通ったか
+                    let cancelWasMonitorred = false; // 括弧内でキャンセルがあったか
+                    let hitWasMonitorred = false;    // 括弧内でヒットがあったか
                     let currentDeck = deck;
 
                     for (const action of actions) {
-                        if (action.isMonitorStart) cancelWasMonitorred = false;
+                        if (action.isMonitorStart) {
+                            cancelWasMonitorred = false;
+                            hitWasMonitorred = false;
+                        }
+                        
                         let currentActionAmount = action.amount;
 
                         if (action.hasBuryShuffle) {
@@ -515,9 +566,11 @@
                             totalPassedDamage += bottomScrapeRefreshDamage;
                         }
 
-                        if (action.hasBottomScrape) currentActionAmount = bottomScrapeCX;
-                        else if (action.hasTemari) currentActionAmount = (bottomScrapeCX > 0) ? 1 : 0;
-                        else if (action.hasToya) {
+                        if (action.hasBottomScrape) {
+                            currentActionAmount = bottomScrapeCX;
+                        } else if (action.hasTemari) {
+                            currentActionAmount = (bottomScrapeCX > 0) ? 1 : 0;
+                        } else if (action.hasToya) {
                             for(let i=0; i < bottomScrapeCX; i++) {
                                 while (currentDeck.length === 0) { 
                                     const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
@@ -529,11 +582,15 @@
                                 totalPassedDamage += results[0];
                                 totalPassedDamage += results[1];
                                 lastDamageCancelled = results[2];
+                                lastDamageHit = (1 > 0 && !lastDamageCancelled); // 1点なので必ず>0
+                                
                                 if (lastDamageCancelled) cancelWasMonitorred = true;
+                                if (lastDamageHit) hitWasMonitorred = true;
                             }
                             continue;
                         }
 
+                        // 条件付きダメージ (キャンセル時 / ヒット時) の判定
                         if (action.hasConditionalCancel) {
                             if (action.isMonitorCheck) {
                                 if (!cancelWasMonitorred) continue;
@@ -541,7 +598,15 @@
                                 if (!lastDamageCancelled) continue;
                             }
                         }
+                        if (action.hasConditionalHit) {
+                            if (action.isMonitorCheck) {
+                                if (!hitWasMonitorred) continue;
+                            } else {
+                                if (!lastDamageHit) continue;
+                            }
+                        }
 
+                        // 実際のダメージ処理前
                         while (currentDeck.length === 0 && currentActionAmount > 0) {
                             const [addedDamage, newDeck] = this._refresh(currentDeck, totalPassedDamage, applyRefreshDamage);
                             totalPassedDamage += addedDamage;
@@ -571,11 +636,18 @@
                             }
                         }
 
+                        // 実際のダメージ処理実行
                         const results = this._processDamage(currentDeck, currentActionAmount, totalPassedDamage, applyRefreshDamage);
                         totalPassedDamage += results[0];
                         totalPassedDamage += results[1];
                         lastDamageCancelled = results[2];
+                        
+                        // ヒット判定 (0点ダメージなどの場合はヒット扱いしない)
+                        lastDamageHit = (currentActionAmount > 0 && !lastDamageCancelled);
+                        
+                        // 監視フラグの更新
                         if (lastDamageCancelled) cancelWasMonitorred = true;
+                        if (lastDamageHit) hitWasMonitorred = true;
                     }
                     damageCounts[totalPassedDamage] = (damageCounts[totalPassedDamage] || 0) + 1;
                 }
@@ -699,6 +771,7 @@
 
                 // 3. シミュレーション実行
                 const resultsMatrix = [];
+                const probsMatrix = []; // 詳細確率保存用
                 
                 // 進捗表示用のカウント変数
                 let totalSteps = damageEntries.length * xLabels.length;
@@ -709,10 +782,14 @@
 
                 for (let i = 0; i < damageEntries.length; i++) {
                     const rowResults = [];
+                    const rowProbs = [];
                     const actions = parseActions(damageEntries[i].input);
+                    
                     if (actions.length === 0) {
                         rowResults.push(...Array(xLabels.length).fill(0));
+                        rowProbs.push(...Array(xLabels.length).fill({}));
                         resultsMatrix.push(rowResults);
+                        probsMatrix.push(rowProbs);
                         // スキップした分もステップカウントを進める
                         currentStep += xLabels.length;
                         continue;
@@ -725,9 +802,7 @@
                         // 進捗表示を更新
                         statusMsg.textContent = `計算中です... (${currentStep}/${totalSteps})`;
                         
-                        // ★ここが重要: 処理を中断してブラウザに描画の機会を与える
-                        // 毎回だと遅くなる場合は if (currentStep % 5 === 0) などで間引くことも可能ですが、
-                        // 確実に応答なしを防ぐため毎回awaitします（setTimeout(..., 0)と同義）
+                        // 処理を中断してブラウザに描画の機会を与える
                         await sleep(0);
 
                         // 現在の条件設定
@@ -739,6 +814,7 @@
                         // バリデーション
                         if (currentCxCount > currentDeckSize || currentDiscardCxCount > currentDiscardSize) {
                             rowResults.push(0);
+                            rowProbs.push({});
                             continue;
                         }
 
@@ -760,11 +836,14 @@
                             probs = simulator.runSimulation(currentDeckSize, currentCxCount, currentDiscardSize, currentDiscardCxCount, actions, simulations, applyRefreshDamage);
                             simulationCache[cacheKey] = probs;
                         }
+                        
+                        rowProbs.push(probs);
 
                         const expectation = Object.values(probs).reduce((sum, prob) => sum + prob, 0);
                         rowResults.push(parseFloat(expectation.toFixed(3)));
                     }
                     resultsMatrix.push(rowResults);
+                    probsMatrix.push(rowProbs);
                 }
 
                 // 4. 結果表示
@@ -783,7 +862,7 @@
                 fixedParamsText.push(`リフレッシュ: ${applyRefreshDamage ? 'ON' : 'OFF'}`);
                 const subtitleText = "固定条件: " + fixedParamsText.join(" / ");
 
-                renderCompareResults(targetParam.name, xLabels, displayLabels, resultsMatrix, subtitleText);
+                renderCompareResults(targetParam.name, xLabels, displayLabels, resultsMatrix, subtitleText, probsMatrix);
                 downloadBtn.classList.remove('hidden');
 
             } catch (error) {
@@ -794,7 +873,12 @@
             }
         }
 
-        function renderCompareResults(axisName, xLabels, displayLabels, dataMatrix, subtitleText) {
+        function renderCompareResults(axisName, xLabels, displayLabels, dataMatrix, subtitleText, probsMatrix) {
+            // グローバルにデータを保持（詳細モーダルで参照するため）
+            window.currentCompareData = {
+                axisName, xLabels, displayLabels, dataMatrix, subtitleText, probsMatrix
+            };
+
             // テーブル描画
             const tableHeadTr = document.querySelector('#compareTable thead tr');
             const tableBody = document.querySelector('#compareTable tbody');
@@ -811,8 +895,12 @@
             displayLabels.forEach((label, rowIndex) => {
                 let tr = `<tr class="${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">`;
                 tr += `<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r">${label}</td>`;
-                dataMatrix[rowIndex].forEach(val => {
-                    tr += `<td class="px-2 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${val.toFixed(2)}</td>`;
+                dataMatrix[rowIndex].forEach((val, colIndex) => {
+                    tr += `<td class="px-2 py-4 whitespace-nowrap text-sm text-center">
+                        <button onclick="showCompareDetailModal(${rowIndex}, ${colIndex})" class="text-indigo-600 hover:text-indigo-900 hover:underline font-semibold focus:outline-none" title="詳細な確率分布を見る">
+                            ${val.toFixed(2)}
+                        </button>
+                    </td>`;
                 });
                 tr += `</tr>`;
                 bodyHtml += tr;
@@ -904,6 +992,71 @@
             });
         }
 
+        // 比較結果のセルをクリックした時のモーダル表示
+        function showCompareDetailModal(rowIndex, colIndex) {
+            if (!window.currentCompareData) return;
+            const data = window.currentCompareData;
+            
+            const probs = data.probsMatrix[rowIndex][colIndex];
+            const expectation = data.dataMatrix[rowIndex][colIndex];
+            const rowLabel = data.displayLabels[rowIndex];
+            const colLabel = `${data.axisName}: ${data.xLabels[colIndex]}`;
+            
+            document.getElementById('compareDetailTitle').textContent = rowLabel;
+            document.getElementById('compareDetailSubtitle').textContent = colLabel;
+            document.getElementById('compareDetailExpectationValue').textContent = `${expectation.toFixed(2)}点`;
+            
+            const resultsOutput = document.getElementById('compareDetailResultsOutput');
+            resultsOutput.innerHTML = '';
+            
+            if (!probs || Object.keys(probs).length === 0) {
+                resultsOutput.innerHTML = '<p class="text-gray-500">有効なデータがありません。（設定値が不正な組み合わせの可能性があります）</p>';
+            } else {
+                const maxDamageResult = Math.max(...Object.keys(probs).map(Number));
+                const resultsHtml = [];
+                for (let d = 1; d <= maxDamageResult; d++) {
+                    const prob = probs[d] || 0.0;
+                    const percentage = (prob * 100).toFixed(2);
+                    const barWidth = Math.max(parseFloat(percentage), 1); 
+                    let barColor = prob >= 0.8 ? 'bg-green-600' : prob >= 0.5 ? 'bg-yellow-500' : prob >= 0.3 ? 'bg-orange-400' : 'bg-red-500';
+                    resultsHtml.push(`
+                        <div class="flex items-center space-x-2">
+                            <span class="font-mono text-sm text-gray-500 flex-shrink-0 whitespace-nowrap w-16">${d}点以上</span>
+                            <div class="flex-grow bg-gray-200 rounded-full h-6 relative overflow-hidden">
+                                <div class="${barColor} h-full rounded-full transition-all duration-300 ease-out" style="width: ${barWidth}%;"></div>
+                                <span class="absolute right-0 top-0 bottom-0 pr-2 flex items-center text-xs font-bold text-gray-800">${percentage}%</span>
+                            </div>
+                        </div>
+                    `);
+                }
+                resultsOutput.innerHTML = resultsHtml.join('');
+            }
+            
+            const modal = document.getElementById('compareDetailModal');
+            const content = document.getElementById('compareDetailModalContent');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex', 'modal-enter');
+            setTimeout(() => {
+                modal.classList.add('modal-enter-active');
+                content.classList.add('modal-content-enter-active');
+                content.classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+        
+        function closeCompareDetailModal() {
+            const modal = document.getElementById('compareDetailModal');
+            const content = document.getElementById('compareDetailModalContent');
+            modal.classList.remove('modal-enter-active');
+            modal.classList.add('modal-leave-active');
+            content.classList.remove('modal-content-enter-active');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex', 'modal-leave-active', 'modal-enter');
+            }, 300);
+        }
+
+
         function downloadChart() {
             const canvas = document.getElementById('compareChart');
             if (!canvas) return;
@@ -960,7 +1113,7 @@
             discardCxCountInput.value = localStorage.getItem('ws_discardCxCount') || "0"; 
             
             damagesInput.value = localStorage.getItem('ws_damages') || "1,3,3,3";
-            simulationsInput.value = localStorage.getItem('ws_simulations') || simulationsInput.value;
+            simulationsInput.value = localStorage.getItem('ws_simulations') || "100000"; // 初期値を100000に
             imageMaxDamageInput.value = localStorage.getItem('ws_imageMaxDamage') || imageMaxDamageInput.value; 
             
             const refreshToggleValue = localStorage.getItem('ws_refreshToggle');
